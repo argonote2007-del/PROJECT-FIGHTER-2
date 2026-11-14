@@ -4675,13 +4675,11 @@ function listenRoom(code){
   }
   const room=snap.val();
   if(room.guestUid){
-   el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!
-두 기기가 연결됐어.';
+   el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
    if(currentRole==='host'&&!room.phase)el('onlineStartDraft').classList.remove('hidden');
    else el('onlineStartDraft').classList.add('hidden');
   }else{
-   el('onlineRoomStatus').textContent='상대방을 기다리는 중...
-친구에게 6자리 코드를 알려줘.';
+   el('onlineRoomStatus').textContent='상대방을 기다리는 중...\n친구에게 6자리 코드를 알려줘.';
    el('onlineStartDraft').classList.add('hidden');
   }
   if(room.phase==='teamSelect'&&!onlineDraftStarted){
