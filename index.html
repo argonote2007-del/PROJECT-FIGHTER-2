@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.26.02</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.26.0</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -4598,11 +4598,6 @@ $("startBtn").onclick=startBattle;
    <button class="btn full" id="onlineLeave" type="button" style="margin-top:8px">대기실 나가기</button>
   </div>
   <div class="onlineStatus" id="onlineGlobalStatus" style="margin-top:10px">Firebase 연결 준비 중...</div>
-  <div id="onlineUidPanel" style="display:none;margin-top:9px;padding:9px;border:1px solid #405671;border-radius:9px;background:#0b1525">
-   <div style="font-size:10px;color:#9fb3ce;margin-bottom:5px">이 기기의 Firebase 익명 UID · 두 기기에서 비교해 줘</div>
-   <div id="onlineUidDisplay" style="font-size:10px;color:#dcecff;word-break:break-all;line-height:1.5"></div>
-   <button class="btn" id="onlineUidCopy" type="button" style="margin-top:7px;padding:6px 9px;font-size:10px">UID 복사</button>
-  </div>
  </div>
 </div>
 <script type="module">
@@ -4632,34 +4627,11 @@ const hideOnline=()=>el('onlineModal').classList.add('hidden');
 const showHome=()=>{el('onlineHome').classList.remove('hidden');el('onlineWaiting').classList.add('hidden');};
 const showWaiting=()=>{el('onlineHome').classList.add('hidden');el('onlineWaiting').classList.remove('hidden');};
 
-let authSignInStarted=false;
-function showOnlineUid(user){
- onlineUser=user;
- el('onlineUidPanel').style.display='block';
- el('onlineUidDisplay').textContent=user.uid;
+signInAnonymously(onlineAuth).then(cred=>{
+ onlineUser=cred.user;
  setStatus('Firebase 연결 완료 · 플레이어 인증 완료');
-}
-onAuthStateChanged(onlineAuth,async user=>{
- if(user){
-  showOnlineUid(user);
-  return;
- }
- // 기존 익명 로그인이 복원된 뒤에만 새 계정을 만든다.
- // 페이지를 열 때마다 불필요한 익명 계정이 생기는 일을 줄인다.
- if(authSignInStarted)return;
- authSignInStarted=true;
- try{
-  const cred=await signInAnonymously(onlineAuth);
-  showOnlineUid(cred.user);
- }catch(err){
-  setStatus('인증 오류: '+err.message,true);
- }
-});
-el('onlineUidCopy').addEventListener('click',async()=>{
- if(!onlineUser)return;
- try{await navigator.clipboard.writeText(onlineUser.uid);setStatus('이 기기의 UID를 복사했어.');}
- catch{setStatus('UID 복사에 실패했어. 화면의 UID를 길게 눌러 복사해 줘.',true);}
-});
+}).catch(err=>setStatus('인증 오류: '+err.message,true));
+onAuthStateChanged(onlineAuth,user=>{if(user){onlineUser=user;setStatus('Firebase 연결 완료 · 플레이어 인증 완료');}});
 
 function makeRoomCode(){return String(Math.floor(100000+Math.random()*900000));}
 function listenRoom(code){
@@ -4711,19 +4683,40 @@ el('onlineJoin').addEventListener('click',async()=>{
  el('onlineJoin').disabled=true;
  try{
   const roomRef=ref(onlineDb,'roomIndex/'+code);
-  let joinFailureReason='';
+
+  // 1) 트랜잭션 전에 같은 경로를 직접 읽어 실제 방 존재 여부를 진단한다.
+  const beforeSnap=await get(roomRef);
+  if(!beforeSnap.exists()){
+   throw new Error('Firebase 조회 결과 방이 없어. 경로: roomIndex/'+code+' · 데이터베이스 주소와 배포 파일을 확인해 줘.');
+  }
+  const beforeRoom=beforeSnap.val()||{};
+  if(beforeRoom.hostUid===onlineUser.uid){
+   throw new Error('현재 기기와 방장의 UID가 같아. 두 기기에서 서로 다른 익명 계정으로 로그인했는지 확인해 줘.');
+  }
+  if(beforeRoom.guestUid){
+   throw new Error('이 방에는 이미 참가자가 있어. 다른 방 코드를 사용해 줘.');
+  }
+
+  // 2) 읽은 직후 다른 참가자가 들어오는 상황을 막기 위해 트랜잭션으로 확정한다.
   const result=await runTransaction(roomRef,current=>{
-   if(!current){joinFailureReason='방을 찾을 수 없어. 방 코드가 정확한지 확인해 줘.';return;}
-   if(current.hostUid===onlineUser.uid){joinFailureReason='이 기기의 UID가 방장의 UID와 같아. 두 기기에서 표시되는 UID를 비교해 줘.';return;}
-   if(current.guestUid){joinFailureReason='이미 다른 참가자가 들어와 있는 방이야.';return;}
+   if(!current||current.hostUid===onlineUser.uid||current.guestUid)return;
    return {...current,guestUid:onlineUser.uid,guestName:'PLAYER 2',status:'ready'};
   },{applyLocally:false});
-  if(!result.committed)throw new Error(joinFailureReason||'방 참가가 완료되지 않았어. 방 상태를 새로 확인해 줘.');
+  if(!result.committed){
+   const afterRoom=result.snapshot&&result.snapshot.exists()?result.snapshot.val():null;
+   if(!afterRoom)throw new Error('방을 읽은 뒤 사라졌어. 방장이 방을 종료했는지 확인해 줘.');
+   if(afterRoom.hostUid===onlineUser.uid)throw new Error('방장과 참가자의 UID가 같아.');
+   if(afterRoom.guestUid)throw new Error('다른 참가자가 먼저 입장했어. 새 방을 만들어 줘.');
+   throw new Error('참가 트랜잭션이 확정되지 않았어. Firebase 규칙 또는 동시 접속 상태를 확인해야 해.');
+  }
   currentRoomCode=code;currentRole='guest';
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
   setStatus('방 참가 완료 · 호스트 연결을 확인하고 있어.');
- }catch(err){setStatus('방 참가 실패: '+err.message,true);}
+ }catch(err){
+  const codeText=err&&err.code?' ['+err.code+']':'';
+  setStatus('방 참가 실패'+codeText+': '+(err&&err.message?err.message:String(err)),true);
+ }
  finally{el('onlineJoin').disabled=false;}
 });
 
