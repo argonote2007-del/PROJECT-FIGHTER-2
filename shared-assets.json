@@ -1,0 +1,43 @@
+{
+  "version": 1794643139603,
+  "art": {
+    "gilgamesh": {
+      "path": "assets/shared/art/gilgamesh.png",
+      "name": "길가메시"
+    },
+    "enkidu": {
+      "path": "assets/shared/art/enkidu.png",
+      "name": "엘키두"
+    },
+    "richard": {
+      "path": "assets/shared/art/richard.png",
+      "name": "리처드 1세"
+    },
+    "merlin": {
+      "path": "assets/shared/art/merlin.png",
+      "name": "멀린"
+    },
+    "morgan": {
+      "path": "assets/shared/art/morgan.png",
+      "name": "모르간"
+    },
+    "altria": {
+      "path": "assets/shared/art/altria.png",
+      "name": "알트리아 펜드래곤"
+    },
+    "malzeno": {
+      "path": "assets/shared/art/malzeno.png",
+      "name": "원초를 새기는 멜 제나"
+    },
+    "safi": {
+      "path": "assets/shared/art/safi.png",
+      "name": "무페토 지바"
+    },
+    "legiana": {
+      "path": "assets/shared/art/legiana.png",
+      "name": "얼려 찌르는 레이기에나"
+    }
+  },
+  "vfx": {},
+  "backgrounds": {}
+}
