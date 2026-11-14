@@ -319,8 +319,16 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
  <div class="panel" id="assetAdminPanel">
   <h2>06 / GITHUB SHARED ASSETS</h2>
-  <p>이미지는 GitHub 저장소의 assets/shared 폴더에 등록해. 저장소 수정 권한이 있는 관리자만 등록할 수 있고, 모든 기기는 공개된 이미지 주소를 자동으로 불러와.</p>
-  <button class="btn primary full" id="assetExportZipButton" type="button">이 기기의 기존 이미지 GitHub 이전용 ZIP 내보내기</button>
+  <p>관리자 기기에서 사진을 여러 장 선택해 캐릭터·기술 이펙트·배경에 연결한 뒤 ZIP으로 내보내. ZIP을 GitHub 저장소 최상위에 올리면 모든 기기가 같은 이미지를 불러와.</p>
+  <div class="backgroundSettings" style="margin:12px 0">
+   <label class="uploadSlot" style="display:block">갤러리에서 이미지 여러 장 선택
+    <input id="bulkAssetFiles" type="file" accept="image/*" multiple>
+   </label>
+   <div id="bulkAssetMapping" style="display:grid;gap:10px;margin-top:10px"></div>
+   <button class="btn primary full" id="bulkAssetImportButton" type="button" disabled>선택한 이미지 게임에 일괄 등록</button>
+   <p id="bulkAssetImportStatus" style="font-size:13px;color:#aab7c8">이미지를 선택하면 각 파일을 연결할 캐릭터·기술·배경을 지정할 수 있어.</p>
+  </div>
+  <button class="btn primary full" id="assetExportZipButton" type="button">등록한 이미지 GitHub 업로드용 ZIP 내보내기</button>
   <p id="assetAdminStatus">GitHub 이미지 목록을 확인하는 중...</p>
   <p style="font-size:12px;color:#aab7c8">이미지 파일과 assets/shared-assets.json을 GitHub 저장소에 올리면 다른 기기에도 자동 반영돼. 이 방식은 Firebase Storage 결제가 필요하지 않아. 단, GitHub 저장소의 이미지는 공개돼.</p>
  </div>
@@ -4039,6 +4047,83 @@ async function exportLocalPFAssetsZip(){
  }catch(err){if(status)status.textContent="내보내기 실패: "+err.message;}
  finally{if(button)button.disabled=false;}
 }
+// 여러 이미지를 한 번에 선택하고 각 파일의 게임 내 저장 위치를 지정한다.
+(function initBulkPFAssetImport(){
+ const fileInput=$("bulkAssetFiles"),mapping=$("bulkAssetMapping"),importButton=$("bulkAssetImportButton"),status=$("bulkAssetImportStatus");
+ if(!fileInput||!mapping||!importButton||!status)return;
+ let selectedFiles=[];
+ const options=[];
+ options.push({value:"",label:"저장 위치 선택..."});
+ options.push({group:"캐릭터 일러스트",items:IDS.map(id=>({value:"art|"+id,label:DATA[id].name}))});
+ options.push({group:"기술 이펙트",items:VFX_IDS.map(id=>{
+  const [fighter,moveId]=id.split(":");
+  const move=DATA[fighter].moves.find(m=>m.id===moveId);
+  return {value:"vfx|"+id,label:DATA[fighter].name+" · "+(move?move.name:moveId)};
+ })});
+ options.push({group:"배경 이미지",items:[{value:"background|new",label:"새 배경 이미지로 등록"}]});
+ function makeSelect(){
+  const select=document.createElement("select");
+  select.className="input";
+  select.style.cssText="width:100%;min-width:0;padding:9px;background:#182333;color:#fff;border:1px solid #526174;border-radius:8px";
+  for(const entry of options){
+   if(entry.group){
+    const group=document.createElement("optgroup");group.label=entry.group;
+    for(const item of entry.items){const option=document.createElement("option");option.value=item.value;option.textContent=item.label;group.appendChild(option);}
+    select.appendChild(group);
+   }else{const option=document.createElement("option");option.value=entry.value;option.textContent=entry.label;select.appendChild(option);}
+  }
+  return select;
+ }
+ function drawRows(){
+  mapping.innerHTML="";
+  selectedFiles.forEach((file,index)=>{
+   const row=document.createElement("div");
+   row.style.cssText="display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding:10px;border:1px solid #35445a;border-radius:9px;background:#111b29";
+   const name=document.createElement("div");name.textContent=(index+1)+". "+file.name+" · "+(file.size/1024/1024).toFixed(2)+" MB";name.style.cssText="font-size:12px;overflow-wrap:anywhere;color:#e8edf5";
+   const select=makeSelect();select.dataset.fileIndex=String(index);
+   row.append(name,select);mapping.appendChild(row);
+  });
+  importButton.disabled=selectedFiles.length===0;
+  status.textContent=selectedFiles.length?selectedFiles.length+"개 파일을 선택했어. 각 파일의 저장 위치를 지정해 줘.":"이미지를 선택하면 각 파일을 연결할 캐릭터·기술·배경을 지정할 수 있어.";
+ }
+ fileInput.addEventListener("change",()=>{
+  selectedFiles=Array.from(fileInput.files||[]).filter(file=>file.type.startsWith("image/"));
+  drawRows();
+ });
+ importButton.addEventListener("click",async()=>{
+  const selects=Array.from(mapping.querySelectorAll("select"));
+  if(!selectedFiles.length)return;
+  if(selects.some(select=>!select.value)){status.textContent="모든 이미지의 저장 위치를 선택해 줘.";return;}
+  const targets=selects.map(select=>select.value);
+  const used=new Set();
+  for(const target of targets){if(target!=="background|new"&&used.has(target)){status.textContent="같은 저장 위치가 두 번 선택됐어. 각 이미지의 저장 위치를 다르게 지정해 줘.";return;}used.add(target);}
+  importButton.disabled=true;fileInput.disabled=true;
+  let done=0;
+  try{
+   for(let i=0;i<selectedFiles.length;i++){
+    const file=selectedFiles[i],[kind,id]=targets[i];
+    if(!file.type.startsWith("image/"))continue;
+    if(kind==="art"){
+     await dbWrite(id,file);setURL(art,id,file);
+    }else if(kind==="vfx"){
+     await dbWrite(vfxKey(id),file);setURL(vfx,id,file);
+    }else if(kind==="background"){
+     const bgId="bulk_"+Date.now().toString(36)+"_"+i+"_"+Math.random().toString(36).slice(2,7);
+     const item={id:bgId,name:file.name||("배경 이미지 "+(bgUploads.length+1))};
+     await dbWrite("bg:user:"+bgId,file);bgUploads.push(item);setURL(bgUserURLs,bgId,file);
+     await dbWrite("bg:uploads",bgUploads);
+    }
+    done++;
+   }
+   renderCards();renderVFXLibrary();renderBackgroundSettings();applyArenaBackground();
+   status.textContent="등록 완료: "+done+"개 이미지가 이 기기의 게임 저장소에 저장됐어. 이제 아래 ZIP 내보내기를 눌러 GitHub에 올려 줘.";
+   selectedFiles=[];fileInput.value="";drawRows();
+  }catch(error){
+   status.textContent="일괄 등록 중 오류가 발생했어. "+done+"개는 저장됐어. 오류: "+(error&&error.message?error.message:error);
+  }finally{fileInput.disabled=false;importButton.disabled=selectedFiles.length===0;}
+ });
+})();
+
 const exportZipButton=$("assetExportZipButton");
 if(exportZipButton)exportZipButton.addEventListener("click",exportLocalPFAssetsZip);
 
