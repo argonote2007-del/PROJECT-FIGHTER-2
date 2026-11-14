@@ -4631,7 +4631,7 @@ $("startBtn").onclick=startBattle;
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getDatabase, ref, get, runTransaction, onValue, onDisconnect, remove, serverTimestamp, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { getDatabase, ref, get, runTransaction, onValue, onDisconnect, remove, serverTimestamp, update, set } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 const firebaseConfig = {
  apiKey: "AIzaSyA0gjD1XlBKpcIFf0bYJ74kHah_TrI4PSA",
@@ -4773,7 +4773,7 @@ el('onlineJoin').addEventListener('click',async()=>{
 
 el('onlineStartDraft').addEventListener('click',async()=>{
  if(currentRole!=='host'||!currentRoomRef){setStatus('방장만 온라인 대전을 시작할 수 있어.',true);return;}
- try{await update(currentRoomRef,{phase:'teamSelect',phaseUpdatedAt:Date.now()});setStatus('온라인 팀 선택을 시작했어.');}
+ try{await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/phase'),'teamSelect');await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/phaseUpdatedAt'),Date.now());setStatus('온라인 팀 선택을 시작했어.');}
  catch(err){setStatus('온라인 시작 실패: '+(err.code||'')+' '+err.message,true);}
 });
 window.onlineSubmitTeam=async(ids,classes)=>{
@@ -4782,7 +4782,8 @@ window.onlineSubmitTeam=async(ids,classes)=>{
  const team={ids,classes,submittedAt:Date.now()};
  const key=currentRole==='host'?'hostTeam':'guestTeam';
  const readyKey=currentRole==='host'?'hostReady':'guestReady';
- await update(currentRoomRef,{[key]:team,[readyKey]:true});
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/'+key),team);
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/'+readyKey),true);
  onlineOpponentSent=false;
  const snap=await get(currentRoomRef),room=snap.val()||{};
  const opponentKey=currentRole==='host'?'guestTeam':'hostTeam';
