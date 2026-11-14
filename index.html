@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.26.0</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.26.02</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -256,13 +256,6 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .onlineStatus{font-size:11px;line-height:1.6;color:#b9cce4;min-height:24px;white-space:pre-wrap}
 
 </style>
-
-<meta name="theme-color" content="#080d17">
-<meta name="description" content="PROJECT FIGHTER TURN BATTLE - Online Turn Battle Game">
-<link rel="manifest" href="./manifest.json">
-<link rel="icon" href="./icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
-
 </head>
 <body>
 
@@ -4605,6 +4598,11 @@ $("startBtn").onclick=startBattle;
    <button class="btn full" id="onlineLeave" type="button" style="margin-top:8px">대기실 나가기</button>
   </div>
   <div class="onlineStatus" id="onlineGlobalStatus" style="margin-top:10px">Firebase 연결 준비 중...</div>
+  <div id="onlineUidPanel" style="display:none;margin-top:9px;padding:9px;border:1px solid #405671;border-radius:9px;background:#0b1525">
+   <div style="font-size:10px;color:#9fb3ce;margin-bottom:5px">이 기기의 Firebase 익명 UID · 두 기기에서 비교해 줘</div>
+   <div id="onlineUidDisplay" style="font-size:10px;color:#dcecff;word-break:break-all;line-height:1.5"></div>
+   <button class="btn" id="onlineUidCopy" type="button" style="margin-top:7px;padding:6px 9px;font-size:10px">UID 복사</button>
+  </div>
  </div>
 </div>
 <script type="module">
@@ -4634,11 +4632,34 @@ const hideOnline=()=>el('onlineModal').classList.add('hidden');
 const showHome=()=>{el('onlineHome').classList.remove('hidden');el('onlineWaiting').classList.add('hidden');};
 const showWaiting=()=>{el('onlineHome').classList.add('hidden');el('onlineWaiting').classList.remove('hidden');};
 
-signInAnonymously(onlineAuth).then(cred=>{
- onlineUser=cred.user;
+let authSignInStarted=false;
+function showOnlineUid(user){
+ onlineUser=user;
+ el('onlineUidPanel').style.display='block';
+ el('onlineUidDisplay').textContent=user.uid;
  setStatus('Firebase 연결 완료 · 플레이어 인증 완료');
-}).catch(err=>setStatus('인증 오류: '+err.message,true));
-onAuthStateChanged(onlineAuth,user=>{if(user){onlineUser=user;setStatus('Firebase 연결 완료 · 플레이어 인증 완료');}});
+}
+onAuthStateChanged(onlineAuth,async user=>{
+ if(user){
+  showOnlineUid(user);
+  return;
+ }
+ // 기존 익명 로그인이 복원된 뒤에만 새 계정을 만든다.
+ // 페이지를 열 때마다 불필요한 익명 계정이 생기는 일을 줄인다.
+ if(authSignInStarted)return;
+ authSignInStarted=true;
+ try{
+  const cred=await signInAnonymously(onlineAuth);
+  showOnlineUid(cred.user);
+ }catch(err){
+  setStatus('인증 오류: '+err.message,true);
+ }
+});
+el('onlineUidCopy').addEventListener('click',async()=>{
+ if(!onlineUser)return;
+ try{await navigator.clipboard.writeText(onlineUser.uid);setStatus('이 기기의 UID를 복사했어.');}
+ catch{setStatus('UID 복사에 실패했어. 화면의 UID를 길게 눌러 복사해 줘.',true);}
+});
 
 function makeRoomCode(){return String(Math.floor(100000+Math.random()*900000));}
 function listenRoom(code){
@@ -4690,11 +4711,14 @@ el('onlineJoin').addEventListener('click',async()=>{
  el('onlineJoin').disabled=true;
  try{
   const roomRef=ref(onlineDb,'roomIndex/'+code);
+  let joinFailureReason='';
   const result=await runTransaction(roomRef,current=>{
-   if(!current||current.hostUid===onlineUser.uid||current.guestUid)return;
+   if(!current){joinFailureReason='방을 찾을 수 없어. 방 코드가 정확한지 확인해 줘.';return;}
+   if(current.hostUid===onlineUser.uid){joinFailureReason='이 기기의 UID가 방장의 UID와 같아. 두 기기에서 표시되는 UID를 비교해 줘.';return;}
+   if(current.guestUid){joinFailureReason='이미 다른 참가자가 들어와 있는 방이야.';return;}
    return {...current,guestUid:onlineUser.uid,guestName:'PLAYER 2',status:'ready'};
   },{applyLocally:false});
-  if(!result.committed)throw new Error('방이 없거나 이미 다른 플레이어가 참가했어. 코드를 확인해 줘.');
+  if(!result.committed)throw new Error(joinFailureReason||'방 참가가 완료되지 않았어. 방 상태를 새로 확인해 줘.');
   currentRoomCode=code;currentRole='guest';
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
@@ -4724,14 +4748,4 @@ el('onlineLeave').addEventListener('click',async()=>{
  showHome();setStatus('대기실에서 나왔어.');
 });
 </script>
-
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js")
-      .catch((error) => console.warn("PWA service worker registration failed:", error));
-  });
-}
-</script>
-
 </body>
