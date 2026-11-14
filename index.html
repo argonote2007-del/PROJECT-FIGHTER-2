@@ -326,9 +326,9 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
    </label>
    <div id="bulkAssetMapping" style="display:grid;gap:10px;margin-top:10px"></div>
    <button class="btn primary full" id="bulkAssetImportButton" type="button" disabled>선택한 이미지 게임에 일괄 등록</button>
-   <p id="bulkAssetImportStatus" style="font-size:13px;color:#aab7c8">이미지를 선택하면 각 파일을 연결할 캐릭터·기술·배경을 지정할 수 있어.</p>
+   <p id="bulkAssetImportStatus" style="font-size:13px;color:#aab7c8">1단계: 이미지 선택 → 저장 위치 지정 → 일괄 등록. 등록이 끝나면 아래 2단계 ZIP 내보내기를 눌러.</p>
   </div>
-  <button class="btn primary full" id="assetExportZipButton" type="button">등록한 이미지 GitHub 업로드용 ZIP 내보내기</button>
+  <button class="btn primary full" id="assetExportZipButton" type="button">2단계: 등록한 이미지 ZIP 내보내기</button>
   <p id="assetAdminStatus">GitHub 이미지 목록을 확인하는 중...</p>
   <p style="font-size:12px;color:#aab7c8">이미지 파일과 assets/shared-assets.json을 GitHub 저장소에 올리면 다른 기기에도 자동 반영돼. 이 방식은 Firebase Storage 결제가 필요하지 않아. 단, GitHub 저장소의 이미지는 공개돼.</p>
  </div>
@@ -4028,7 +4028,7 @@ async function exportLocalPFAssetsZip(){
  if(button)button.disabled=true;
  try{
   const items=await window.collectLocalPFAssets();
-  if(!items.length)throw new Error("이 기기의 IndexedDB에서 내보낼 이미지가 없어. 사진이 저장된 기기에서 실행해 줘.");
+  if(!items.length)throw new Error("먼저 사진을 선택한 뒤 '선택한 이미지 게임에 일괄 등록'을 눌러 저장해 줘. 등록이 끝난 다음 ZIP 내보내기를 눌러야 해.");
   const manifest={version:Date.now(),art:{},vfx:{},backgrounds:{}};
   const files=[];
   for(const item of items){
@@ -4101,7 +4101,8 @@ async function exportLocalPFAssetsZip(){
   let done=0;
   try{
    for(let i=0;i<selectedFiles.length;i++){
-    const file=selectedFiles[i],[kind,id]=targets[i];
+    const file=selectedFiles[i];
+    const [kind,id]=targets[i].split("|");
     if(!file.type.startsWith("image/"))continue;
     if(kind==="art"){
      await dbWrite(id,file);setURL(art,id,file);
