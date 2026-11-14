@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.28.1</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.0</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -2183,6 +2183,7 @@ function showAllocationModal(){
   log("엘키두가 이번 턴의 능력치를 배분했다.");
   renderBattle();
   announce("기술을 선택하세요.");
+  if(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishBattleState==="function")window.onlinePublishBattleState();
  };
 }
 
@@ -3612,6 +3613,7 @@ function beginTurn(){
   battle.phase="allocation";
   busy=true;
   renderBattle();
+  if(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishBattleState==="function")window.onlinePublishBattleState();
   showAllocationModal();
   return;
  }
@@ -3638,6 +3640,7 @@ function beginTurn(){
 
  announce("사용할 기술을 선택하세요.");
  renderBattle();
+ if(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishBattleState==="function")window.onlinePublishBattleState();
 }
 
 /* =========================================================
@@ -3674,17 +3677,38 @@ async function playTurn(index,moveOverride){
   }
  }
 
- const cpuChoice=v25PrepareCpuRichardAction(chooseCPUAction(e,p),e);
+ const playerMove=moveOverride||(
+  index===-1?STRUGGLE:movesOf(p)[index]
+ );
+ const onlineMatch=!!(window.onlineBattleActive&&window.onlineRoomCode);
+ if(onlineMatch&&window.onlineRole==="guest"){
+  busy=true;battle.phase="resolve";selectedMove=null;renderBattle();
+  try{
+   const allocation=p.id==="enkidu"?{atk:p.stats.atk,spd:p.stats.spd,allocatedAtk:p.allocatedAtk,allocatedSpd:p.allocatedSpd}:null;
+   await window.onlineSubmitAction({turn:battle.turn,index,move:moveOverride||null,allocation});
+   announce("행동 전송 완료 · 방장의 턴 처리를 기다리는 중...");
+  }catch(err){busy=false;battle.phase="select";renderBattle();alert("행동 전송 실패: "+(err.message||err));}
+  return;
+ }
 
  busy=true;
  battle.phase="resolve";
  selectedMove=null;
-
  renderBattle();
-
- const playerMove=moveOverride||(
-  index===-1?STRUGGLE:movesOf(p)[index]
- );
+ let cpuChoice;
+ if(onlineMatch&&window.onlineRole==="host"){
+  announce("상대방의 행동을 기다리는 중...");
+  const remoteAction=await window.onlineWaitForOpponentAction(battle.turn);
+  if(remoteAction.allocation&&e.id==="enkidu"){
+   e.stats.atk=Number(remoteAction.allocation.atk)||e.stats.atk;
+   e.stats.spd=Number(remoteAction.allocation.spd)||e.stats.spd;
+   e.allocatedAtk=Number(remoteAction.allocation.allocatedAtk)||e.stats.atk;
+   e.allocatedSpd=Number(remoteAction.allocation.allocatedSpd)||e.stats.spd;
+  }
+  cpuChoice={index:Number.isInteger(remoteAction.index)?remoteAction.index:-1,move:remoteAction.move||null};
+ }else{
+  cpuChoice=v25PrepareCpuRichardAction(chooseCPUAction(e,p),e);
+ }
 
  const enemyIndex=cpuChoice.index;
  const enemyMove=cpuChoice.move||(
@@ -3915,6 +3939,7 @@ function endBattle(){
   winner.hp+" / "+winner.maxHp:"0";
 
  screen("resultScreen");
+ if(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishBattleState==="function")window.onlinePublishBattleState();
 }
 
 /* =========================================================
@@ -4347,19 +4372,29 @@ let v24CpuClasses={};
 window.onlineBattleActive=false;
 window.onlineOpponentTeam=null;
 window.onlineTeamSubmitted=false;
+window.onlineLineupSubmitted=false;
+window.onlineOpponentLineup=null;
 window.onlineBeginTeamSelection=()=>{
  window.onlineBattleActive=true;
  window.onlineOpponentTeam=null;
  window.onlineTeamSubmitted=false;
+ window.onlineLineupSubmitted=false;
+ window.onlineOpponentLineup=null;
  document.getElementById("onlineModal")?.classList.add("hidden");
  startBattle();
 };
 window.onlineReceiveOpponentTeam=(team)=>{
- if(!window.onlineBattleActive||!team||!Array.isArray(team.ids)||!team.classes)return;
+ if(!window.onlineBattleActive||!team||!Array.isArray(team.ids)||team.ids.length!==6||!team.classes)return;
  window.onlineOpponentTeam=team;
  v24CpuSix=team.ids.slice();
  v24CpuClasses={...team.classes};
  if(window.onlineTeamSubmitted)v24ShowReveal();
+};
+window.onlineReceiveOpponentLineup=(lineup)=>{
+ if(!window.onlineBattleActive||!Array.isArray(lineup)||lineup.length!==3)return;
+ if(new Set(lineup).size!==3||lineup.some(id=>!v24CpuSix.includes(id)))return;
+ window.onlineOpponentLineup=lineup.slice();
+ if(window.onlineLineupSubmitted)v24ShowLineupReveal();
 };
 
 function v24HasPartyTarget(f,m){
@@ -4511,6 +4546,7 @@ function v24RosterCards(ids,classMap){
 }
 
 function v24ShowReveal(){
+ const online=!!window.onlineBattleActive;
  openSystemModal(`
   <h2>TEAM REVEAL · 양측 팀 공개</h2>
   <p>상대의 6명도 확인했어. 이제 각 팀에서 출전할 3명을 선택하고 순서를 정해.</p>
@@ -4518,19 +4554,24 @@ function v24ShowReveal(){
   <div class="v24TeamGrid">${v24RosterCards(v24DraftSix,v24DraftClasses)}</div>
   <h3 style="font-size:12px;color:#f0b36d">OPPONENT TEAM</h3>
   <div class="v24TeamGrid">${v24RosterCards(v24CpuSix,v24CpuClasses)}</div>
-  ${window.onlineBattleActive?'<p style="color:#8ee6c1;font-weight:900">ONLINE · 양쪽의 6인 팀 선택이 동기화됐어.</p><p>현재 버전에서는 6인 팀 공개까지 연결됐어. 다음 단계에서 3인 출전 선택과 실제 턴 전투를 연결할 수 있어.</p>':'<button class="btn primary full" id="v24ChooseLineup">출전할 3명 선택</button>'}
+  ${online?'<p style="color:#8ee6c1;font-weight:900">ONLINE · 양쪽의 6인 팀 선택이 동기화됐어.</p>':''}
+  <button class="btn primary full" id="v24ChooseLineup">출전할 3명 선택</button>
   <button class="btn full" id="v24BackSix" style="margin-top:8px">내 팀 다시 선택</button>`);
- if(!window.onlineBattleActive)$("v24ChooseLineup").onclick=()=>{v24Lineup=[];v24RenderLineupPicker();};
- $("v24BackSix").onclick=()=>{if(window.onlineBattleActive){alert("온라인 팀을 이미 전송했기 때문에 현재는 선택을 다시 바꿀 수 없어.");return;}v24RenderClassPicker();};
+ $("v24ChooseLineup").onclick=()=>{
+  if(online&&window.onlineLineupSubmitted){v24ShowLineupWait();return;}
+  v24Lineup=[];v24RenderLineupPicker();
+ };
+ $("v24BackSix").onclick=()=>{if(online){alert("온라인 팀을 이미 전송했기 때문에 현재는 6인 팀을 다시 선택할 수 없어.");return;}v24RenderClassPicker();};
 }
 
 function v24RenderLineupPicker(){
+ const online=!!window.onlineBattleActive;
  openSystemModal(`
   <h2>STARTING LINEUP · 3명 선발</h2>
   <p>캐릭터를 누른 순서대로 출전 순서가 정해져. 정확히 3명을 선택해.</p>
   <p id="v24LineupCount">선발 ${v24Lineup.length}/3</p>
   <div class="v24TeamGrid" id="v24LineupGrid"></div>
-  <button class="btn primary full" id="v24StartTeam" ${v24Lineup.length===3?'':'disabled'}>3대3 전투 시작</button>
+  <button class="btn primary full" id="v24StartTeam" ${v24Lineup.length===3?'':'disabled'}>${online?'출전 3명 확정 및 상대에게 전송':'3대3 전투 시작'}</button>
   <button class="btn full" id="v24BackReveal" style="margin-top:8px">팀 공개 화면으로</button>`);
  const grid=$("v24LineupGrid");
  v24DraftSix.forEach(id=>{
@@ -4544,9 +4585,106 @@ function v24RenderLineupPicker(){
   };
   grid.appendChild(b);
  });
- $("v24StartTeam").onclick=()=>{if(v24Lineup.length===3)v24BeginBattle();};
+ $("v24StartTeam").onclick=()=>{
+  if(v24Lineup.length!==3)return;
+  if(online){v24SubmitOnlineLineup();return;}
+  v24BeginBattle();
+ };
  $("v24BackReveal").onclick=v24ShowReveal;
 }
+
+function v24ShowLineupWait(){
+ openSystemModal(`
+  <h2>LINEUP SENT · 선발 전송 완료</h2>
+  <p>내 출전 순서가 상대에게 전달됐어.</p>
+  <h3 style="font-size:12px;color:#5cdeed">내 출전 순서</h3>
+  <div class="v24TeamGrid">${v24RosterCards(v24Lineup,v24DraftClasses)}</div>
+  <p style="color:#8ee6c1;font-weight:900">상대방이 출전할 3명을 선택하기를 기다리는 중...</p>`);
+}
+
+async function v24SubmitOnlineLineup(){
+ if(!window.onlineBattleActive||typeof window.onlineSubmitLineup!=="function"){
+  alert("온라인 연결이 준비되지 않았어. 대기실에 다시 접속해 줘.");return;
+ }
+ if(v24Lineup.length!==3||new Set(v24Lineup).size!==3||v24Lineup.some(id=>!v24DraftSix.includes(id)))return;
+ window.onlineLineupSubmitted=true;
+ v24ShowLineupWait();
+ try{
+  await window.onlineSubmitLineup(v24Lineup.slice());
+  if(window.onlineOpponentLineup)v24ShowLineupReveal();
+ }catch(err){
+  window.onlineLineupSubmitted=false;
+  alert("출전 3명 전송 실패: "+(err.message||err));
+  v24RenderLineupPicker();
+ }
+}
+
+function v24ShowLineupReveal(){
+ if(!window.onlineBattleActive||!window.onlineLineupSubmitted||!window.onlineOpponentLineup)return;
+ openSystemModal(`
+  <h2>LINEUP REVEAL · 3인 선발 완료</h2>
+  <p>양쪽 플레이어의 출전 멤버와 순서가 모두 동기화됐어.</p>
+  <h3 style="font-size:12px;color:#5cdeed">YOUR STARTING LINEUP</h3>
+  <div class="v24TeamGrid">${v24RosterCards(v24Lineup,v24DraftClasses)}</div>
+  <h3 style="font-size:12px;color:#f0b36d">OPPONENT STARTING LINEUP</h3>
+  <div class="v24TeamGrid">${v24RosterCards(window.onlineOpponentLineup,v24CpuClasses)}</div>
+  <p style="color:#8ee6c1;font-weight:900">온라인 3인 선발 완료!</p>
+  ${window.onlineRole==='host'?'<button class="btn primary full" id="v24OnlineBattleStart" style="margin-top:10px">ONLINE BATTLE START · 전투 시작</button>':'<p>방장이 전투를 시작하기를 기다리는 중...</p>'}`);
+ if(window.onlineRole==='host'){
+  const start=$("v24OnlineBattleStart");
+  if(start)start.onclick=v24BeginOnlineBattle;
+ }
+}
+
+function v24BeginOnlineBattle(){
+ if(!window.onlineBattleActive||window.onlineRole!=="host"||!window.onlineOpponentLineup||!window.onlineLineupSubmitted)return;
+ const makeTeam=(ids,classMap)=>ids.map(id=>{
+  const f=makeFighter(id);f.className=classMap[id]||null;return f;
+ });
+ battle={
+  mode:"team",
+  player:{team:makeTeam(v24Lineup,v24DraftClasses),roster:v24DraftSix.slice(),activeIndex:0},
+  cpu:{team:makeTeam(window.onlineOpponentLineup,v24CpuClasses),roster:v24CpuSix.slice(),activeIndex:0},
+  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null
+ };
+ ["player","cpu"].forEach(side=>battle[side].team.forEach(f=>{if(f.id==="merlin")f.hp=60;}));
+ busy=true;selectedMove=null;clearFX();closeSystemModal();
+ for(const id of ["playerArt","enemyArt","playerInfo","enemyInfo"])$(id).dataset.id="";
+ $("detail").classList.add("hidden");$("log").textContent="";
+ $("arena").style.setProperty("--fighterColor",DATA[v24Lineup[0]].color);
+ screen("battleScreen");applyArenaBackground();resizeCanvas();renderBattle();
+ $("introPlayer").textContent=DATA[v24Lineup[0]].name;
+ $("introPlayer").style.color=DATA[v24Lineup[0]].color;
+ $("introEnemy").textContent=DATA[window.onlineOpponentLineup[0]].name;
+ $("introEnemy").style.color=DATA[window.onlineOpponentLineup[0]].color;
+ $("intro").classList.remove("on");void $("intro").offsetWidth;$("intro").classList.add("on");
+ sound(180,.25);
+ (async()=>{
+  await delay(1700);$("intro").classList.remove("on");
+  if(!battle)return;
+  log("온라인 3대3 전투 개시! "+DATA[v24Lineup[0]].name+" VS "+DATA[window.onlineOpponentLineup[0]].name);
+  log("양쪽 플레이어의 행동이 동기화돼.");
+  busy=false;beginTurn();
+ })().catch(err=>{console.error(err);announce("온라인 전투 시작 중 오류가 발생했어.");});
+}
+
+// Firebase로 전송할 전투 상태. Set 자료형은 JSON 왕복이 가능하도록 배열로 변환한다.
+window.onlineGetBattleSnapshot=()=>{
+ if(!battle)return null;
+ return JSON.stringify(battle,(key,value)=>value instanceof Set?{__pfSet:[...value]}:value);
+};
+window.onlineApplyBattleState=(serialized)=>{
+ try{
+  const incoming=typeof serialized==="string"?JSON.parse(serialized):serialized;
+  if(!incoming||!incoming.player||!incoming.cpu)return;
+  const restored=JSON.parse(JSON.stringify(incoming), (key,value)=>value&&Array.isArray(value.__pfSet)?new Set(value.__pfSet):value);
+  const own=restored.player;restored.player=restored.cpu;restored.cpu=own;
+  battle=restored;busy=false;selectedMove=null;closeSystemModal();clearFX();
+  if(battle.phase==="ended"){endBattle();return;}
+  screen("battleScreen");applyArenaBackground();resizeCanvas();renderBattle();
+  beginTurn();
+ }catch(err){console.error("온라인 전투 상태 적용 실패",err);announce("상대 전투 정보를 적용하지 못했어.");}
+};
 
 function v24BeginBattle(){
  const cpuLineup=v24CpuSix.slice(0,6).sort(()=>Math.random()-.5).slice(0,3);
@@ -4789,9 +4927,9 @@ execute=async function(side,index,moveOverride,order){
   }
   if(m.isSwitch||index===-2){
    const targetIndex=moveOverride.targetIndex;
-   if(side!=="player"||actor.switchLock>0||!battle.player.team[targetIndex]||battle.player.team[targetIndex].hp<=0)return;
-   actor.switchedIn=false;battle.player.activeIndex=targetIndex;
-   const next=active("player");next.switchedIn=true;
+   if(actor.switchLock>0||!battle[side].team[targetIndex]||battle[side].team[targetIndex].hp<=0)return;
+   actor.switchedIn=false;battle[side].activeIndex=targetIndex;
+   const next=active(side);next.switchedIn=true;
    log(actor.name+"이(가) 물러나고 "+next.name+"이(가) 출전했다. 교체로 이번 턴 행동을 소비했다.");
    announce(next.name+" 출전!");renderBattle();return;
   }
@@ -4892,7 +5030,26 @@ const onlineApp=initializeApp(firebaseConfig);
 const onlineAuth=getAuth(onlineApp);
 const onlineDb=getDatabase(onlineApp);
 let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, currentRole=null;
+let onlineStateRevision=0, lastAppliedBattleRevision=0;
 const el=id=>document.getElementById(id);
+window.onlineSubmitAction=async(action)=>{
+ if(currentRole!=="guest"||!currentRoomCode||!onlineUser)throw new Error("온라인 게스트 연결이 없어.");
+ if(!action||!Number.isInteger(action.turn))throw new Error("전송할 턴 정보가 올바르지 않아.");
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/actions/'+action.turn+'/guest'),{...action,submittedAt:Date.now(),uid:onlineUser.uid});
+};
+window.onlineWaitForOpponentAction=(turn)=>new Promise((resolve,reject)=>{
+ if(currentRole!=="host"||!currentRoomCode){reject(new Error("온라인 방장 연결이 없어."));return;}
+ const actionRef=ref(onlineDb,'roomIndex/'+currentRoomCode+'/actions/'+turn+'/guest');
+ let done=false,stop=null;
+ const finish=(err,value)=>{if(done)return;done=true;if(stop)stop();if(err)reject(err);else resolve(value);};
+ stop=onValue(actionRef,snap=>{if(snap.exists()){const value=snap.val()||{};if(value.uid!==onlineUser.uid)finish(null,value);}},err=>finish(err));
+});
+window.onlinePublishBattleState=async()=>{
+ if(currentRole!=="host"||!currentRoomCode||!onlineUser||typeof window.onlineGetBattleSnapshot!=="function")return;
+ const state=window.onlineGetBattleSnapshot();if(!state)return;
+ onlineStateRevision=Math.max(Date.now(),onlineStateRevision+1);
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
+};
 const setStatus=(message,isError=false)=>{el('onlineGlobalStatus').textContent=message;el('onlineGlobalStatus').style.color=isError?'#ff9aa9':'#b9cce4';};
 const showOnline=()=>el('onlineModal').classList.remove('hidden');
 const hideOnline=()=>el('onlineModal').classList.add('hidden');
@@ -4938,6 +5095,7 @@ signInAnonymously(onlineAuth).then(cred=>{
 function makeRoomCode(){return String(Math.floor(100000+Math.random()*900000));}
 let onlineDraftStarted=false;
 let onlineOpponentSent=false;
+let onlineOpponentLineupSent=false;
 function listenRoom(code){
  if(stopRoomListener)stopRoomListener();
  currentRoomRef=ref(onlineDb,'roomIndex/'+code);
@@ -4948,6 +5106,10 @@ function listenRoom(code){
    return;
   }
   const room=snap.val();
+  if(currentRole==="guest"&&room.battleState&&Number(room.battleState.revision||0)>lastAppliedBattleRevision){
+   lastAppliedBattleRevision=Number(room.battleState.revision||0);
+   if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
+  }
   if(room.guestUid){
    el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
    if(currentRole==='host'&&!room.phase)el('onlineStartDraft').classList.remove('hidden');
@@ -4965,6 +5127,11 @@ function listenRoom(code){
    if(room[opponentKey]&&!onlineOpponentSent){
     onlineOpponentSent=true;
     if(typeof window.onlineReceiveOpponentTeam==='function')window.onlineReceiveOpponentTeam(room[opponentKey]);
+   }
+   const opponentLineupKey=currentRole==='host'?'guestLineup':'hostLineup';
+   if(room[opponentLineupKey]&&!onlineOpponentLineupSent){
+    onlineOpponentLineupSent=true;
+    if(typeof window.onlineReceiveOpponentLineup==='function')window.onlineReceiveOpponentLineup(room[opponentLineupKey].ids||room[opponentLineupKey]);
    }
   }
  },err=>setStatus('방 정보 수신 오류: '+err.message,true));
@@ -4987,7 +5154,7 @@ el('onlineCreate').addEventListener('click',async()=>{
    created=result.committed;
   }
   if(!created)throw new Error('사용 가능한 방 코드를 만들지 못했어. 다시 시도해 줘.');
-  currentRoomCode=code;currentRole='host';onlineDraftStarted=false;onlineOpponentSent=false;
+  currentRoomCode=code;currentRole='host';window.onlineRole='host';window.onlineRoomCode=code;onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
   setStatus('방 생성 완료 · 친구에게 코드를 전달해 줘.');
@@ -5034,7 +5201,7 @@ el('onlineJoin').addEventListener('click',async()=>{
    if(afterRoom.guestUid)throw new Error('다른 참가자가 먼저 입장했어. 새 방을 만들어 줘.');
    throw new Error('방은 존재하지만 참가 트랜잭션이 확정되지 않았어. Firebase 보안 규칙 또는 네트워크 상태를 확인해야 해.');
   }
-  currentRoomCode=code;currentRole='guest';onlineDraftStarted=false;onlineOpponentSent=false;
+  currentRoomCode=code;currentRole='guest';window.onlineRole='guest';window.onlineRoomCode=code;onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
   setStatus('방 참가 완료 · 호스트 연결을 확인하고 있어.');
@@ -5063,6 +5230,25 @@ window.onlineSubmitTeam=async(ids,classes)=>{
  const opponentKey=currentRole==='host'?'guestTeam':'hostTeam';
  if(room[opponentKey]&&typeof window.onlineReceiveOpponentTeam==='function'){onlineOpponentSent=true;window.onlineReceiveOpponentTeam(room[opponentKey]);}
 };
+window.onlineSubmitLineup=async(ids)=>{
+ if(!currentRoomRef||!currentRole||!onlineUser)throw new Error('온라인 방 연결이 끊겼어.');
+ if(!Array.isArray(ids)||ids.length!==3||new Set(ids).size!==3)throw new Error('출전 캐릭터 3명을 순서대로 선택해야 해.');
+ const ownTeamKey=currentRole==='host'?'hostTeam':'guestTeam';
+ const teamSnap=await get(ref(onlineDb,'roomIndex/'+currentRoomCode+'/'+ownTeamKey));
+ const ownTeam=teamSnap.exists()?teamSnap.val():null;
+ if(!ownTeam||!Array.isArray(ownTeam.ids)||ids.some(id=>!ownTeam.ids.includes(id)))throw new Error('내가 선택한 6인 팀에 없는 캐릭터가 포함됐어.');
+ const key=currentRole==='host'?'hostLineup':'guestLineup';
+ const readyKey=currentRole==='host'?'hostLineupReady':'guestLineupReady';
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/'+key),{ids:ids.slice(),submittedAt:Date.now()});
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/'+readyKey),true);
+ onlineOpponentLineupSent=false;
+ const snap=await get(currentRoomRef),room=snap.val()||{};
+ const opponentKey=currentRole==='host'?'guestLineup':'hostLineup';
+ if(room[opponentKey]&&typeof window.onlineReceiveOpponentLineup==='function'){
+  onlineOpponentLineupSent=true;
+  window.onlineReceiveOpponentLineup(room[opponentKey].ids||room[opponentKey]);
+ }
+};
 
 el('onlineCopy').addEventListener('click',async()=>{
  if(!currentRoomCode)return;
@@ -5081,7 +5267,7 @@ el('onlineLeave').addEventListener('click',async()=>{
    },{applyLocally:false});
   }catch(err){setStatus('방 나가기 처리 실패: '+err.message,true);}
  }
- currentRoomCode=null;currentRoomRef=null;currentRole=null;onlineDraftStarted=false;onlineOpponentSent=false;window.onlineBattleActive=false;window.onlineTeamSubmitted=false;window.onlineOpponentTeam=null;
+ currentRoomCode=null;currentRoomRef=null;currentRole=null;window.onlineRole=null;window.onlineRoomCode=null;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;window.onlineBattleActive=false;window.onlineTeamSubmitted=false;window.onlineOpponentTeam=null;window.onlineLineupSubmitted=false;window.onlineOpponentLineup=null;
  showHome();setStatus('대기실에서 나왔어.');
 });
 </script>
