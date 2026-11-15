@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.1</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.2</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,6 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.2 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -5094,6 +5095,14 @@ window.onlinePublishBattleState=async()=>{
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
 
+const PF_BUILD_VERSION="v0.29.2";
+let pfDiagLast="초기화";
+function pfDiag(message,isError=false){
+ pfDiagLast=String(message||"");
+ const node=document.getElementById("pfBuildDiag");
+ if(node){node.textContent="BUILD "+PF_BUILD_VERSION+" · "+(currentRole||"미접속").toUpperCase()+" · "+pfDiagLast;node.style.color=isError?"#ff8d9d":"#aee3f0";}
+ console.log("[PF "+PF_BUILD_VERSION+"]",pfDiagLast);
+}
 let onlineAnimationSequence=0;
 let lastGuestAnimationId=null;
 const guestAnimationInFlight=new Set();
@@ -5107,11 +5116,13 @@ window.onlinePublishAnimationStart=async(payload)=>{
  ));
  const event={...safePayload,id,phase:"start",impact:null,startedAt:Date.now()};
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),event);
+ pfDiag("공격 이벤트 전송 · "+id.slice(-10));
  return {id,startAt:Number(event.startAt)||Date.now()};
 };
 window.onlinePublishAnimationImpact=async(id,impact)=>{
  if(currentRole!=="host"||!currentRoomCode)return;
  await update(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),{phase:"impact",impact:impact||{},impactAt:Date.now()});
+ pfDiag("피해 정보 전송 완료");
 };
 window.onlineWaitForAnimationAck=(id)=>new Promise(resolve=>{
  if(currentRole!=="host"||!currentRoomCode){resolve();return;}
@@ -5131,6 +5142,7 @@ window.onlineWaitForAnimationImpact=(id)=>new Promise(resolve=>{
 });
 window.onlineReceiveAnimationEvent=(event)=>{
  if(currentRole!=="guest"||!event||!event.id)return;
+ pfDiag("이벤트 수신 "+String(event.phase||"?")+" / "+String(event.id).slice(-10));
  window.__pfCurrentAnimation=event;
  if(event.impact){const waiter=guestImpactWaiters.get(event.id);if(waiter)waiter(event.impact);}
  if(event.id===lastGuestAnimationId||guestAnimationInFlight.has(event.id))return;
@@ -5139,7 +5151,9 @@ window.onlineReceiveAnimationEvent=(event)=>{
   try{
    // 먼저 방장이 지정한 시작 시각까지 기다린다. 전투 상태가 늦게 도착해도
    // 공격 캐릭터를 너무 일찍 찾다가 연출을 포기하지 않도록 순서를 바꾼다.
+   pfDiag("시작 시각 대기 중");
    await waitForOnlineAnimationStart(event.startAt);
+   pfDiag("공격 캐릭터 탐색 중");
    const mirrorSide=event.side==="player"?"cpu":"player";
    let attacker=null;
    const findUntil=Date.now()+5000;
@@ -5149,6 +5163,7 @@ window.onlineReceiveAnimationEvent=(event)=>{
     await delay(100);
    }
    if(!attacker)throw new Error("공격 캐릭터 동기화 시간 초과: "+String(event.attackerId||"ID 없음"));
+   pfDiag("연출 재생 중 · "+String(event.move&&event.move.name||"공격"));
    lastGuestAnimationId=event.id;
    await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
     const impact=await window.onlineWaitForAnimationImpact(event.id);
@@ -5160,8 +5175,10 @@ window.onlineReceiveAnimationEvent=(event)=>{
     }
    },Number(event.duration)||undefined);
    await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now()});
+   pfDiag("연출 완료 · 확인 응답 전송");
   }catch(err){
    console.error("게스트 온라인 공격 연출 실패",err);
+   pfDiag("연출 실패: "+(err&&err.message?err.message:String(err)),true);
    announce("상대 공격 연출 동기화 오류: "+(err&&err.message?err.message:String(err)));
    try{await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now(),error:String(err&&err.message||err)});}catch(writeErr){console.error("공격 연출 확인 응답 실패",writeErr);}
   }finally{
@@ -5216,6 +5233,7 @@ let onlineDraftStarted=false;
 let onlineOpponentSent=false;
 let onlineOpponentLineupSent=false;
 function listenRoom(code){
+ pfDiag("방 구독 시작 · "+(currentRole||"역할 없음"));
  if(stopRoomListener){stopRoomListener();stopRoomListener=null;}
  if(stopAnimationListener){stopAnimationListener();stopAnimationListener=null;}
  lastGuestAnimationId=null;
@@ -5226,11 +5244,12 @@ function listenRoom(code){
  if(currentRole==="guest"){
   const animationRef=ref(onlineDb,'roomIndex/'+code+'/animation');
   stopAnimationListener=onValue(animationRef,snap=>{
-   if(!snap.exists())return;
+   if(!snap.exists()){pfDiag("연출 구독 연결됨 · 이벤트 대기");return;}
    const event=snap.val();
    if(event&&event.id&&typeof window.onlineReceiveAnimationEvent==="function")
     window.onlineReceiveAnimationEvent(event);
   },err=>{
+   pfDiag("Firebase 연출 수신 오류: "+(err&&err.message?err.message:String(err)),true);
    console.error("게스트 공격 연출 수신 오류",err);
    setStatus("공격 연출 수신 오류: "+(err&&err.message?err.message:String(err)),true);
   });
@@ -5270,7 +5289,7 @@ function listenRoom(code){
     if(typeof window.onlineReceiveOpponentLineup==='function')window.onlineReceiveOpponentLineup(room[opponentLineupKey].ids||room[opponentLineupKey]);
    }
   }
- },err=>setStatus('방 정보 수신 오류: '+err.message,true));
+ },err=>{pfDiag("방 정보 수신 오류: "+err.message,true);setStatus('방 정보 수신 오류: '+err.message,true);});
 }
 
 el('onlineEntry').addEventListener('click',()=>{showOnline();});
@@ -5290,7 +5309,7 @@ el('onlineCreate').addEventListener('click',async()=>{
    created=result.committed;
   }
   if(!created)throw new Error('사용 가능한 방 코드를 만들지 못했어. 다시 시도해 줘.');
-  currentRoomCode=code;currentRole='host';window.onlineRole='host';window.onlineRoomCode=code;onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
+  currentRoomCode=code;currentRole='host';window.onlineRole='host';window.onlineRoomCode=code;pfDiag('방장 모드 · 방 생성');onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
   setStatus('방 생성 완료 · 친구에게 코드를 전달해 줘.');
@@ -5337,7 +5356,7 @@ el('onlineJoin').addEventListener('click',async()=>{
    if(afterRoom.guestUid)throw new Error('다른 참가자가 먼저 입장했어. 새 방을 만들어 줘.');
    throw new Error('방은 존재하지만 참가 트랜잭션이 확정되지 않았어. Firebase 보안 규칙 또는 네트워크 상태를 확인해야 해.');
   }
-  currentRoomCode=code;currentRole='guest';window.onlineRole='guest';window.onlineRoomCode=code;onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
+  currentRoomCode=code;currentRole='guest';window.onlineRole='guest';window.onlineRoomCode=code;pfDiag('참가자 모드 · 방 입장');onlineStateRevision=0;lastAppliedBattleRevision=0;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;
   el('onlineCodeDisplay').textContent=code;
   showWaiting();listenRoom(code);
   setStatus('방 참가 완료 · 호스트 연결을 확인하고 있어.');
