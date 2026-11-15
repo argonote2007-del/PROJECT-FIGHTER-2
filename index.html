@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.6</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.7</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.6 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.7 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -3000,14 +3000,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.6: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.7: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.6 · HOST · "+message;
+   node.textContent="BUILD v0.29.7 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.6]",message);
+  console.log("[PF v0.29.7]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5143,9 +5143,10 @@ window.onlinePublishBattleMessage=async(message)=>{
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleMessage'),{
   id,text:String(message??""),sentAt:Date.now()
  });
+ pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.6";
+const PF_BUILD_VERSION="v0.29.7";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5307,6 +5308,7 @@ function listenRoom(code){
   });
  }
  // 방장이 전송한 전투 문구를 게스트 화면의 중앙 announcement 영역에 표시한다.
+ let lastRoomBattleMessageId=null;
  if(stopMessageListener){stopMessageListener();stopMessageListener=null;}
  if(currentRole==="guest"){
   let lastGuestBattleMessageId=null;
@@ -5333,6 +5335,17 @@ function listenRoom(code){
   if(currentRole==="guest"&&room.battleState&&Number(room.battleState.revision||0)>lastAppliedBattleRevision){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
+  }
+  // v0.29.7: 부모 room 구독에서도 전투 문구를 수신한다.
+  // battleState 적용이 announcement를 덮더라도, 호스트의 최신 문구를 마지막에 표시한다.
+  if(currentRole==="guest"&&room.battleMessage){
+   const syncedMessage=room.battleMessage;
+   if(syncedMessage.id&&syncedMessage.id!==lastRoomBattleMessageId){
+    lastRoomBattleMessageId=syncedMessage.id;
+    const announcementNode=document.getElementById("announcement");
+    if(announcementNode)announcementNode.textContent=String(syncedMessage.text||"");
+    pfDiag("전투 문구 수신 · "+String(syncedMessage.text||"").slice(0,24));
+   }
   }
   if(room.guestUid){
    el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
