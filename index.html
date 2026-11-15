@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.4</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.5</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.4 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.5 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -2992,14 +2992,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.4: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.5: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.4 · HOST · "+message;
+   node.textContent="BUILD v0.29.5 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.4]",message);
+  console.log("[PF v0.29.5]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3027,8 +3027,12 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  await playFX(side,user,m,hit,async()=>{
   let impact=null;
   if(onImpact)impact=await onImpact();
-  try{await window.onlinePublishAnimationImpact(event.id,impact||{});}
-  catch(err){console.warn("온라인 피해 연출 정보 전송 실패",err);}
+  try{
+   const impactPacket={...(impact||{})};
+   if(typeof window.onlineGetBattleSnapshot==="function")
+    impactPacket.battleState=window.onlineGetBattleSnapshot();
+   await window.onlinePublishAnimationImpact(event.id,impactPacket);
+  }catch(err){console.warn("온라인 피해 연출 정보 전송 실패",err);}
  });
  try{await window.onlineWaitForAnimationAck(event.id);}
  catch(err){console.warn("게스트 연출 확인 대기 종료",err);}
@@ -4742,6 +4746,17 @@ window.onlineApplyBattleState=(serialized)=>{
   beginTurn();
  }catch(err){console.error("온라인 전투 상태 적용 실패",err);announce("상대 전투 정보를 적용하지 못했어.");}
 };
+// 적중 순간 전투 데이터만 교체한다. 진행 중인 공격 캔버스/모션은 취소하지 않는다.
+window.onlineApplyBattleImpactState=(serialized)=>{
+ try{
+  const incoming=typeof serialized==="string"?JSON.parse(serialized):serialized;
+  if(!incoming||!incoming.player||!incoming.cpu)return;
+  const restored=JSON.parse(JSON.stringify(incoming),(key,value)=>value&&Array.isArray(value.__pfSet)?new Set(value.__pfSet):value);
+  const own=restored.player;restored.player=restored.cpu;restored.cpu=own;
+  battle=restored;
+  renderBattle();
+ }catch(err){console.error("온라인 적중 상태 적용 실패",err);}
+};
 
 function v24BeginBattle(){
  const cpuLineup=v24CpuSix.slice(0,6).sort(()=>Math.random()-.5).slice(0,3);
@@ -5114,7 +5129,7 @@ window.onlinePublishBattleState=async()=>{
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
 
-const PF_BUILD_VERSION="v0.29.4";
+const PF_BUILD_VERSION="v0.29.5";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5187,6 +5202,8 @@ window.onlineReceiveAnimationEvent=(event)=>{
    await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
     const impact=await window.onlineWaitForAnimationImpact(event.id);
     if(!impact)return;
+    if(impact.battleState&&typeof window.onlineApplyBattleImpactState==="function")
+     window.onlineApplyBattleImpactState(impact.battleState);
     if(event.move&&event.move.type!=="status"&&Number(impact.damage)>0){
      const targetSide=mirrorSide==="player"?"cpu":"player";
      damageFloat(targetSide,Number(impact.damage),impact.color||"#ffffff");
