@@ -2983,28 +2983,36 @@ async function playFX(side,user,m,hit,onImpact,durationOverride){
 }
 
 /* 온라인 대전: 방장의 판정은 그대로 유지하고, 게스트에게 동일한 FX/피해 표시를 재생한다. */
+async function waitForOnlineAnimationStart(startAt){
+ const target=Number(startAt)||Date.now()+onlineServerTimeOffset;
+ const remaining=target-(Date.now()+onlineServerTimeOffset);
+ if(remaining>0)await delay(remaining);
+}
+
 async function playOnlineFX(side,user,m,hit,onImpact){
  if(!(window.onlineBattleActive&&window.onlineRole==="host"&&
       typeof window.onlinePublishAnimationStart==="function")){
   return playFX(side,user,m,hit,onImpact);
  }
- let eventId=null;
+ let event=null;
  try{
-  eventId=await window.onlinePublishAnimationStart({
+  event=await window.onlinePublishAnimationStart({
    turn:battle.turn,side,attackerId:user.id,move:m,hit:!!hit,
-   duration:fast?(isUltimate(m)?480:300):(isUltimate(m)?950:620)
+   duration:fast?(isUltimate(m)?480:300):(isUltimate(m)?950:620),
+   startAt:Date.now()+onlineServerTimeOffset+1800
   });
  }catch(err){
   console.warn("온라인 공격 연출 시작 전송 실패",err);
   return playFX(side,user,m,hit,onImpact);
  }
+ await waitForOnlineAnimationStart(event.startAt);
  await playFX(side,user,m,hit,async()=>{
   let impact=null;
   if(onImpact)impact=await onImpact();
-  try{await window.onlinePublishAnimationImpact(eventId,impact||{});}
+  try{await window.onlinePublishAnimationImpact(event.id,impact||{});}
   catch(err){console.warn("온라인 피해 연출 정보 전송 실패",err);}
  });
- try{await window.onlineWaitForAnimationAck(eventId);}
+ try{await window.onlineWaitForAnimationAck(event.id);}
  catch(err){console.warn("게스트 연출 확인 대기 종료",err);}
 }
 
@@ -5060,6 +5068,10 @@ const firebaseConfig = {
 const onlineApp=initializeApp(firebaseConfig);
 const onlineAuth=getAuth(onlineApp);
 const onlineDb=getDatabase(onlineApp);
+let onlineServerTimeOffset=0;
+onValue(ref(onlineDb,'.info/serverTimeOffset'),snap=>{
+ onlineServerTimeOffset=Number(snap.val())||0;
+});
 let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, currentRole=null;
 let onlineStateRevision=0, lastAppliedBattleRevision=0;
 const el=id=>document.getElementById(id);
@@ -5092,8 +5104,9 @@ window.onlinePublishAnimationStart=async(payload)=>{
  const safePayload=JSON.parse(JSON.stringify(payload,(key,value)=>
   typeof value==="number"&&!Number.isFinite(value)?null:value
  ));
- await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),{...safePayload,id,phase:"start",impact:null,startedAt:Date.now()});
- return id;
+ const event={...safePayload,id,phase:"start",impact:null,startedAt:Date.now()};
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),event);
+ return {id,startAt:Number(event.startAt)||Date.now()};
 };
 window.onlinePublishAnimationImpact=async(id,impact)=>{
  if(currentRole!=="host"||!currentRoomCode)return;
@@ -5127,6 +5140,7 @@ window.onlineReceiveAnimationEvent=(event)=>{
    let attacker=active(mirrorSide);
    if(!attacker||attacker.id!==event.attackerId){await delay(250);attacker=active(mirrorSide);}
    if(!attacker)throw new Error("연출할 출전 캐릭터가 없어.");
+   await waitForOnlineAnimationStart(event.startAt);
    await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
     const impact=await window.onlineWaitForAnimationImpact(event.id);
     if(!impact)return;
