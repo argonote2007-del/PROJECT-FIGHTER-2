@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.0</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.1</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -2882,7 +2882,7 @@ function spriteFX(url,m,color,duration,target){
  return img;
 }
 
-async function playFX(side,user,m,hit,onImpact){
+async function playFX(side,user,m,hit,onImpact,durationOverride){
  const attacker=$(side==="player"?"playerArt":"enemyArt");
  const defender=$(side==="player"?"enemyArt":"playerArt");
 
@@ -2893,9 +2893,9 @@ async function playFX(side,user,m,hit,onImpact){
 
  const url=vfx[sourceId+":"+m.id];
 
- const duration=fast?
+ const duration=Number(durationOverride)|| (fast?
   (ultimate?480:300):
-  (ultimate?950:620);
+  (ultimate?950:620));
 
  if(ultimate){
   $("darken").classList.add("on");
@@ -2929,6 +2929,7 @@ async function playFX(side,user,m,hit,onImpact){
 
  const token=++effectToken;
  const start=performance.now();
+ let impactTask=Promise.resolve();
 
  await new Promise(resolve=>{
   let impacted=false;
@@ -2957,7 +2958,8 @@ async function playFX(side,user,m,hit,onImpact){
      sound(390,.08);
     }
 
-    if(hit&&onImpact)onImpact();
+    if(hit&&onImpact)
+    impactTask=Promise.resolve().then(()=>onImpact());
    }
 
    if(t<1){
@@ -2972,10 +2974,38 @@ async function playFX(side,user,m,hit,onImpact){
   frameId=requestAnimationFrame(frame);
  });
 
+ await impactTask;
+
  if(sprite)sprite.remove();
 
  attacker.classList.remove("attack");
  $("darken").classList.remove("on");
+}
+
+/* 온라인 대전: 방장의 판정은 그대로 유지하고, 게스트에게 동일한 FX/피해 표시를 재생한다. */
+async function playOnlineFX(side,user,m,hit,onImpact){
+ if(!(window.onlineBattleActive&&window.onlineRole==="host"&&
+      typeof window.onlinePublishAnimationStart==="function")){
+  return playFX(side,user,m,hit,onImpact);
+ }
+ let eventId=null;
+ try{
+  eventId=await window.onlinePublishAnimationStart({
+   turn:battle.turn,side,attackerId:user.id,move:m,hit:!!hit,
+   duration:fast?(isUltimate(m)?480:300):(isUltimate(m)?950:620)
+  });
+ }catch(err){
+  console.warn("온라인 공격 연출 시작 전송 실패",err);
+  return playFX(side,user,m,hit,onImpact);
+ }
+ await playFX(side,user,m,hit,async()=>{
+  let impact=null;
+  if(onImpact)impact=await onImpact();
+  try{await window.onlinePublishAnimationImpact(eventId,impact||{});}
+  catch(err){console.warn("온라인 피해 연출 정보 전송 실패",err);}
+ });
+ try{await window.onlineWaitForAnimationAck(eventId);}
+ catch(err){console.warn("게스트 연출 확인 대기 종료",err);}
 }
 
 /* =========================================================
@@ -3381,7 +3411,7 @@ async function execute(side,index,moveOverride,order){
  if(m.type==="status"){
   a.lastMove=m.id;
 
-  await playFX(side,a,currentMove,true,()=>{});
+  await playOnlineFX(side,a,currentMove,true,()=>({status:true}));
   activateStatus(side,a,d,currentMove);
 
   renderBattle();
@@ -3405,7 +3435,7 @@ async function execute(side,index,moveOverride,order){
   a.lastMove=m.id;
 
   /* 빗나간 경우에도 공격 모션을 먼저 보여준 뒤 결과 자막을 표시한다. */
-  await playFX(side,a,currentMove,false,()=>{});
+  await playOnlineFX(side,a,currentMove,false,()=>({miss:true}));
   announce(currentMove.name+"이(가) 빗나갔다!");
   log(a.name+"의 "+currentMove.name+"이(가) 빗나갔다.");
 
@@ -3439,7 +3469,7 @@ async function execute(side,index,moveOverride,order){
   let actual=0;
   let damage=0;
 
-  await playFX(side,a,currentMove,true,()=>{
+  await playOnlineFX(side,a,currentMove,true,()=>{
    damage=damageOf(a,d,currentMove,chosenType);
    actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits});
 
@@ -3454,6 +3484,7 @@ async function execute(side,index,moveOverride,order){
    }
 
    renderBattle();
+   return {damage:actual,targetSide:other,color:DATA[sourceId]?.color||DATA[a.id].color};
   });
 
   if(d.hp<=0)break;
@@ -5050,6 +5081,68 @@ window.onlinePublishBattleState=async()=>{
  onlineStateRevision=Math.max(Date.now(),onlineStateRevision+1);
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
+
+let onlineAnimationSequence=0;
+let lastGuestAnimationId=null;
+const guestImpactWaiters=new Map();
+
+window.onlinePublishAnimationStart=async(payload)=>{
+ if(currentRole!=="host"||!currentRoomCode||!onlineUser)throw new Error("온라인 방장 연결이 없어.");
+ const id=String(payload.turn)+"_"+(++onlineAnimationSequence)+"_"+Date.now();
+ const safePayload=JSON.parse(JSON.stringify(payload,(key,value)=>
+  typeof value==="number"&&!Number.isFinite(value)?null:value
+ ));
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),{...safePayload,id,phase:"start",impact:null,startedAt:Date.now()});
+ return id;
+};
+window.onlinePublishAnimationImpact=async(id,impact)=>{
+ if(currentRole!=="host"||!currentRoomCode)return;
+ await update(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animation'),{phase:"impact",impact:impact||{},impactAt:Date.now()});
+};
+window.onlineWaitForAnimationAck=(id)=>new Promise(resolve=>{
+ if(currentRole!=="host"||!currentRoomCode){resolve();return;}
+ const ackRef=ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+id+'/guest');
+ let finished=false,stop=null;
+ const finish=()=>{if(finished)return;finished=true;if(stop)stop();resolve();};
+ stop=onValue(ackRef,snap=>{if(snap.exists())finish();},()=>finish());
+ setTimeout(finish,18000);
+});
+window.onlineWaitForAnimationImpact=(id)=>new Promise(resolve=>{
+ const current=window.__pfCurrentAnimation;
+ if(current&&current.id===id&&current.impact){resolve(current.impact);return;}
+ let settled=false;
+ const done=value=>{if(settled)return;settled=true;guestImpactWaiters.delete(id);resolve(value||null);};
+ guestImpactWaiters.set(id,done);
+ setTimeout(()=>done(null),12000);
+});
+window.onlineReceiveAnimationEvent=(event)=>{
+ if(currentRole!=="guest"||!event||!event.id)return;
+ window.__pfCurrentAnimation=event;
+ if(event.impact){const waiter=guestImpactWaiters.get(event.id);if(waiter)waiter(event.impact);}
+ if(event.id===lastGuestAnimationId)return;
+ lastGuestAnimationId=event.id;
+ (async()=>{
+  try{
+   const mirrorSide=event.side==="player"?"cpu":"player";
+   let attacker=active(mirrorSide);
+   if(!attacker||attacker.id!==event.attackerId){await delay(250);attacker=active(mirrorSide);}
+   if(!attacker)throw new Error("연출할 출전 캐릭터가 없어.");
+   await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
+    const impact=await window.onlineWaitForAnimationImpact(event.id);
+    if(!impact)return;
+    if(event.move&&event.move.type!=="status"&&Number(impact.damage)>0){
+     const targetSide=mirrorSide==="player"?"cpu":"player";
+     damageFloat(targetSide,Number(impact.damage),impact.color||"#ffffff");
+     sound(130,.15,"sawtooth");
+    }
+   },Number(event.duration)||undefined);
+   await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now()});
+  }catch(err){
+   console.error("게스트 온라인 공격 연출 실패",err);
+   try{await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now(),error:String(err&&err.message||err)});}catch(_){}
+  }
+ })();
+};
 const setStatus=(message,isError=false)=>{el('onlineGlobalStatus').textContent=message;el('onlineGlobalStatus').style.color=isError?'#ff9aa9':'#b9cce4';};
 const showOnline=()=>el('onlineModal').classList.remove('hidden');
 const hideOnline=()=>el('onlineModal').classList.add('hidden');
@@ -5110,6 +5203,8 @@ function listenRoom(code){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
   }
+  if(currentRole==="guest"&&room.animation&&typeof window.onlineReceiveAnimationEvent==="function")
+   window.onlineReceiveAnimationEvent(room.animation);
   if(room.guestUid){
    el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
    if(currentRole==='host'&&!room.phase)el('onlineStartDraft').classList.remove('hidden');
