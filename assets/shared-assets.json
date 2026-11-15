@@ -1,5 +1,5 @@
 {
-  "version": 1794643139603,
+  "version": 1794747764373,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -36,6 +36,10 @@
     "legiana": {
       "path": "assets/shared/art/legiana.png",
       "name": "얼려 찌르는 레이기에나"
+    },
+    "violetRathian": {
+      "path": "assets/shared/art/violetRathian.png",
+      "name": "자독희 리오레이아"
     }
   },
   "vfx": {},
