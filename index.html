@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.2</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.3</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.2 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.3 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -2991,10 +2991,24 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- if(!(window.onlineBattleActive&&window.onlineRole==="host"&&
-      typeof window.onlinePublishAnimationStart==="function")){
+ // v0.29.3: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ const showHostFXDiag=(message,isError=false)=>{
+  const node=document.getElementById("pfBuildDiag");
+  if(node){
+   node.textContent="BUILD v0.29.3 · HOST · "+message;
+   node.style.color=isError?"#ff8d9d":"#aee3f0";
+  }
+  console.log("[PF v0.29.3]",message);
+ };
+ const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
+ const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
+ if(!isOnlineHost||!hasPublisher){
+  if(window.onlineRole==="host"){
+   showHostFXDiag("공격 함수 진입 · active="+String(!!window.onlineBattleActive)+" · role="+String(window.onlineRole||"없음")+" · publisher="+String(hasPublisher),true);
+  }
   return playFX(side,user,m,hit,onImpact);
  }
+ showHostFXDiag("공격 함수 진입 · 이벤트 전송 시도");
  let event=null;
  try{
   event=await window.onlinePublishAnimationStart({
@@ -3003,6 +3017,8 @@ async function playOnlineFX(side,user,m,hit,onImpact){
    startAt:Date.now()+onlineServerTimeOffset+1800
   });
  }catch(err){
+  const message="이벤트 전송 실패 · "+String(err&&err.message?err.message:err);
+  showHostFXDiag(message,true);
   console.warn("온라인 공격 연출 시작 전송 실패",err);
   return playFX(side,user,m,hit,onImpact);
  }
@@ -5095,7 +5111,7 @@ window.onlinePublishBattleState=async()=>{
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
 
-const PF_BUILD_VERSION="v0.29.2";
+const PF_BUILD_VERSION="v0.29.3";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
