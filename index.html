@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.8</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.9</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.8 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.9 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -503,8 +503,8 @@ const DATA={
   resource:"방심",max:3,
   resourceDesc:"전투 시작 시 방심 3개. 실제 피해를 입은 타격마다 1개 감소. 자동 회복은 없다. 방심이 0개일 때만 에누마 엘리시 사용 가능.",
   moves:[
-   M("gate","게이트 오브 바빌론",25,10,100,0,"adaptive",
-    "3회 공격. 물리와 특수 중 더 높은 피해를 주는 유형을 선택해 세 타격에 적용한다.",3),
+   M("gate","게이트 오브 바빌론",40,10,100,0,"adaptive",
+    "위력 40의 공격을 3회 가한다. 물리와 특수 중 더 높은 피해를 주는 유형을 선택해 세 타격에 적용한다.",3),
    M("chain","하늘의 사슬",50,12,90,0,"special",
     "명중 시 상대에게 3턴간 교체 불가 상태 부여.",1,{effect:"chain"}),
    M("shield","하늘의 방패",0,10,100,2,"status",
@@ -526,8 +526,8 @@ const DATA={
     "공격하지 않고 자신의 HP를 50 회복한다.",1,{effect:"heal",heal:50}),
    M("wisdom","백성의 예지",0,10,100,0,"status",
     "이번 전투에서 사용된 기술 하나를 복사한다. 복사한 기술은 각각 한 번만 복사할 수 있다.",1,{effect:"copy"}),
-   M("enkiduUltimate","에누마 엘리시",0,5,90,0,"special",
-    "상대가 이번 전투에서 사용한 궁극기 횟수 × 50의 위력.",1,{ultimate:true,effect:"enkiduUltimate"})
+   M("enkiduUltimate","에누마 엘리시",0,5,90,0,"physical",
+    "물리 공격. 현재 위력은 상대가 이번 전투에서 사용한 궁극기 횟수 × 50으로 결정된다.",1,{ultimate:true,effect:"enkiduUltimate"})
   ]
  },
 
@@ -674,6 +674,7 @@ const CLASS_NAMES=["세이버","아처","랜서","라이더","캐스터","어새
 const CLASS_EN={"세이버":"Saber","아처":"Archer","랜서":"Lancer","라이더":"Rider","캐스터":"Caster","어새신":"Assassin","버서커":"Berserker","쉴더":"Shielder","룰러":"Ruler","어벤져":"Avenger","문캔서":"Moon Cancer","얼터에고":"Alter Ego","프리텐더":"Pretender","포리너":"Foreigner"};
 const CLASS_ELIGIBILITY={
  gilgamesh:["세이버","아처","랜서","어새신","라이더","캐스터","버서커","룰러","얼터에고"],
+ asta:["세이버","어벤져"],
  enkidu:["랜서","버서커"],merlin:["캐스터"],
  richard:["세이버","라이더","버서커","룰러"],
  morgan:["캐스터","버서커","룰러"],altria:["세이버"],
@@ -1843,7 +1844,7 @@ function openProfile(id,runtimeFighter=null){
    <b>${i+1}. ${m.name}</b>
    <small>
     ${typeName(m.type)} · 위력 ${
-     m.hits>1?m.power+" × "+m.hits:m.power||"—"
+     (m.effect==="enkiduUltimate"?"상대 궁극기 횟수 × 50":m.hits>1?m.power+" × "+m.hits:m.power||"—")
     } · 명중 ${m.accuracy}% · PP ${ppText(m.pp)} · 우선도 ${
      m.priority>0?"+":""
     }${m.priority}
@@ -1995,6 +1996,9 @@ function resourceHTML(f){
   amount=f.allocatedAtk;
   max=300;
   note="이번 턴 ATK "+f.stats.atk+" / SPD "+f.stats.spd;
+  const opponent=active("cpu");
+  const currentPower=opponent?Math.max(0,Number(opponent.ultimateCount)||0)*50:0;
+  note+=" · 에누마 엘리시 현재 위력 "+currentPower;
  }else if(f.id==="merlin"){
   amount=f.illusionAvailable?1:0;
   max=1;
@@ -2381,7 +2385,7 @@ function showDetail(i){
 
  const values=[
   ["유형",typeName(m.type)],
-  ["위력",m.hits>1?m.power+" × "+m.hits:m.power||"—"],
+  ["위력",m.hits>1?displayedMovePower(f,m)+" × "+m.hits:displayedMovePower(f,m)||"—"],
   ["명중률",m.accuracy+"%"],
   ["PP",i===-1?"∞":f.pp[i]===null?"미정":f.pp[i]+" / "+m.pp],
   ["우선도",(m.priority>0?"+":"")+m.priority],
@@ -2406,6 +2410,14 @@ function showDetail(i){
 
 $("detailClose").onclick=()=>
  $("detail").classList.add("hidden");
+
+function displayedMovePower(f,m){
+ if(f&&f.id==="enkidu"&&m&&m.effect==="enkiduUltimate"){
+  const opponent=active("cpu");
+  return opponent?Math.max(0,Number(opponent.ultimateCount)||0)*50:0;
+ }
+ return m?(m.power||0):0;
+}
 
 function renderMoves(){
  if(!battle)return;
@@ -2448,7 +2460,7 @@ function renderMoves(){
     locked?
     (m.partyOnly?"3대3 전용":"방심 "+f.resource+"개 · 사용 불가"):
     cooling?"재사용 대기 · 이번 턴 사용 불가":
-    "위력 "+(m.hits>1?m.power+"×"+m.hits:m.power||"—")+
+    "위력 "+(m.hits>1?displayedMovePower(f,m)+"×"+m.hits:displayedMovePower(f,m)||"—")+
     " · 명중 "+m.accuracy+"%"
    }</span>
    <span>PP ${pp}</span>
@@ -3022,14 +3034,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.8: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.9: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.8 · HOST · "+message;
+   node.textContent="BUILD v0.29.9 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.8]",message);
+  console.log("[PF v0.29.9]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5184,7 +5196,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.8";
+const PF_BUILD_VERSION="v0.29.9";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5374,7 +5386,7 @@ function listenRoom(code){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
   }
-  // v0.29.8: 부모 room 구독에서도 전투 문구를 수신한다.
+  // v0.29.9: 부모 room 구독에서도 전투 문구를 수신한다.
   // battleState 적용이 announcement를 덮더라도, 호스트의 최신 문구를 마지막에 표시한다.
   if(currentRole==="guest"&&room.battleMessage){
    const syncedMessage=room.battleMessage;
