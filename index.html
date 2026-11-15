@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.5</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.6</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.5 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.6 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -1938,7 +1938,15 @@ function screen(id){
 }
 
 function announce(s){
- $("announcement").textContent=s;
+ const message=String(s??"");
+ $("announcement").textContent=message;
+ // 온라인 대전에서는 방장 메시지를 Firebase로 전달해 게스트 화면에도 같은 자막을 표시한다.
+ if(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishBattleMessage==="function"){
+  window.onlinePublishBattleMessage(message).catch(err=>{
+   console.error("온라인 전투 메시지 전송 실패",err);
+   if(typeof window.pfDiag==="function")window.pfDiag("전투 문구 전송 실패: "+(err&&err.message?err.message:String(err)),true);
+  });
+ }
 }
 
 function log(s){
@@ -2992,14 +3000,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.5: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.6: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.5 · HOST · "+message;
+   node.textContent="BUILD v0.29.6 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.5]",message);
+  console.log("[PF v0.29.6]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5107,7 +5115,7 @@ onValue(ref(onlineDb,'.info/serverTimeOffset'),snap=>{
  onlineServerTimeOffset=Number(snap.val())||0;
  window.onlineServerTimeOffset=onlineServerTimeOffset;
 });
-let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, stopAnimationListener=null, currentRole=null;
+let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, stopAnimationListener=null, stopMessageListener=null, currentRole=null;
 let onlineStateRevision=0, lastAppliedBattleRevision=0;
 const el=id=>document.getElementById(id);
 window.onlineSubmitAction=async(action)=>{
@@ -5128,8 +5136,16 @@ window.onlinePublishBattleState=async()=>{
  onlineStateRevision=Math.max(Date.now(),onlineStateRevision+1);
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
+let onlineMessageSequence=0;
+window.onlinePublishBattleMessage=async(message)=>{
+ if(currentRole!=="host"||!currentRoomCode||!onlineUser)return;
+ const id=Date.now()+"_"+(++onlineMessageSequence);
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleMessage'),{
+  id,text:String(message??""),sentAt:Date.now()
+ });
+};
 
-const PF_BUILD_VERSION="v0.29.5";
+const PF_BUILD_VERSION="v0.29.6";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5288,6 +5304,23 @@ function listenRoom(code){
    pfDiag("Firebase 연출 수신 오류: "+(err&&err.message?err.message:String(err)),true);
    console.error("게스트 공격 연출 수신 오류",err);
    setStatus("공격 연출 수신 오류: "+(err&&err.message?err.message:String(err)),true);
+  });
+ }
+ // 방장이 전송한 전투 문구를 게스트 화면의 중앙 announcement 영역에 표시한다.
+ if(stopMessageListener){stopMessageListener();stopMessageListener=null;}
+ if(currentRole==="guest"){
+  let lastGuestBattleMessageId=null;
+  const messageRef=ref(onlineDb,'roomIndex/'+code+'/battleMessage');
+  stopMessageListener=onValue(messageRef,snap=>{
+   if(!snap.exists())return;
+   const message=snap.val()||{};
+   if(!message.id||message.id===lastGuestBattleMessageId)return;
+   lastGuestBattleMessageId=message.id;
+   const node=document.getElementById("announcement");
+   if(node)node.textContent=String(message.text||"");
+  },err=>{
+   console.error("게스트 전투 문구 수신 실패",err);
+   pfDiag("전투 문구 수신 실패: "+(err&&err.message?err.message:String(err)),true);
   });
  }
  stopRoomListener=onValue(currentRoomRef,snap=>{
@@ -5458,6 +5491,7 @@ el('onlineLeave').addEventListener('click',async()=>{
    },{applyLocally:false});
   }catch(err){setStatus('방 나가기 처리 실패: '+err.message,true);}
  }
+ if(stopMessageListener){stopMessageListener();stopMessageListener=null;}
  currentRoomCode=null;currentRoomRef=null;currentRole=null;window.onlineRole=null;window.onlineRoomCode=null;onlineDraftStarted=false;onlineOpponentSent=false;onlineOpponentLineupSent=false;window.onlineBattleActive=false;window.onlineTeamSubmitted=false;window.onlineOpponentTeam=null;window.onlineLineupSubmitted=false;window.onlineOpponentLineup=null;
  showHome();setStatus('대기실에서 나왔어.');
 });
