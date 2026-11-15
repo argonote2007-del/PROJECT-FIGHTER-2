@@ -5072,7 +5072,7 @@ let onlineServerTimeOffset=0;
 onValue(ref(onlineDb,'.info/serverTimeOffset'),snap=>{
  onlineServerTimeOffset=Number(snap.val())||0;
 });
-let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, currentRole=null;
+let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, stopAnimationListener=null, currentRole=null;
 let onlineStateRevision=0, lastAppliedBattleRevision=0;
 const el=id=>document.getElementById(id);
 window.onlineSubmitAction=async(action)=>{
@@ -5204,8 +5204,24 @@ let onlineDraftStarted=false;
 let onlineOpponentSent=false;
 let onlineOpponentLineupSent=false;
 function listenRoom(code){
- if(stopRoomListener)stopRoomListener();
+ if(stopRoomListener){stopRoomListener();stopRoomListener=null;}
+ if(stopAnimationListener){stopAnimationListener();stopAnimationListener=null;}
+ lastGuestAnimationId=null;
  currentRoomRef=ref(onlineDb,'roomIndex/'+code);
+ // 공격 연출은 방 전체 데이터가 아니라 animation 노드만 별도로 구독한다.
+ // 게스트 기기에서 다른 방 데이터 갱신과 관계없이 시작/피해 이벤트를 즉시 받도록 한다.
+ if(currentRole==="guest"){
+  const animationRef=ref(onlineDb,'roomIndex/'+code+'/animation');
+  stopAnimationListener=onValue(animationRef,snap=>{
+   if(!snap.exists())return;
+   const event=snap.val();
+   if(event&&event.id&&typeof window.onlineReceiveAnimationEvent==="function")
+    window.onlineReceiveAnimationEvent(event);
+  },err=>{
+   console.error("게스트 공격 연출 수신 오류",err);
+   setStatus("공격 연출 수신 오류: "+(err&&err.message?err.message:String(err)),true);
+  });
+ }
  stopRoomListener=onValue(currentRoomRef,snap=>{
   if(!snap.exists()){
    el('onlineRoomStatus').textContent='방이 종료되었거나 존재하지 않아.';
@@ -5217,8 +5233,6 @@ function listenRoom(code){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
   }
-  if(currentRole==="guest"&&room.animation&&typeof window.onlineReceiveAnimationEvent==="function")
-   window.onlineReceiveAnimationEvent(room.animation);
   if(room.guestUid){
    el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
    if(currentRole==='host'&&!room.phase)el('onlineStartDraft').classList.remove('hidden');
