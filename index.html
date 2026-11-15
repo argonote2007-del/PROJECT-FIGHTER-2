@@ -5096,6 +5096,7 @@ window.onlinePublishBattleState=async()=>{
 
 let onlineAnimationSequence=0;
 let lastGuestAnimationId=null;
+const guestAnimationInFlight=new Set();
 const guestImpactWaiters=new Map();
 
 window.onlinePublishAnimationStart=async(payload)=>{
@@ -5132,15 +5133,23 @@ window.onlineReceiveAnimationEvent=(event)=>{
  if(currentRole!=="guest"||!event||!event.id)return;
  window.__pfCurrentAnimation=event;
  if(event.impact){const waiter=guestImpactWaiters.get(event.id);if(waiter)waiter(event.impact);}
- if(event.id===lastGuestAnimationId)return;
- lastGuestAnimationId=event.id;
+ if(event.id===lastGuestAnimationId||guestAnimationInFlight.has(event.id))return;
+ guestAnimationInFlight.add(event.id);
  (async()=>{
   try{
-   const mirrorSide=event.side==="player"?"cpu":"player";
-   let attacker=active(mirrorSide);
-   if(!attacker||attacker.id!==event.attackerId){await delay(250);attacker=active(mirrorSide);}
-   if(!attacker)throw new Error("연출할 출전 캐릭터가 없어.");
+   // 먼저 방장이 지정한 시작 시각까지 기다린다. 전투 상태가 늦게 도착해도
+   // 공격 캐릭터를 너무 일찍 찾다가 연출을 포기하지 않도록 순서를 바꾼다.
    await waitForOnlineAnimationStart(event.startAt);
+   const mirrorSide=event.side==="player"?"cpu":"player";
+   let attacker=null;
+   const findUntil=Date.now()+5000;
+   while(Date.now()<findUntil){
+    const candidate=active(mirrorSide);
+    if(candidate&&candidate.id===event.attackerId){attacker=candidate;break;}
+    await delay(100);
+   }
+   if(!attacker)throw new Error("공격 캐릭터 동기화 시간 초과: "+String(event.attackerId||"ID 없음"));
+   lastGuestAnimationId=event.id;
    await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
     const impact=await window.onlineWaitForAnimationImpact(event.id);
     if(!impact)return;
@@ -5153,7 +5162,10 @@ window.onlineReceiveAnimationEvent=(event)=>{
    await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now()});
   }catch(err){
    console.error("게스트 온라인 공격 연출 실패",err);
-   try{await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now(),error:String(err&&err.message||err)});}catch(_){}
+   announce("상대 공격 연출 동기화 오류: "+(err&&err.message?err.message:String(err)));
+   try{await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now(),error:String(err&&err.message||err)});}catch(writeErr){console.error("공격 연출 확인 응답 실패",writeErr);}
+  }finally{
+   guestAnimationInFlight.delete(event.id);
   }
  })();
 };
@@ -5207,6 +5219,7 @@ function listenRoom(code){
  if(stopRoomListener){stopRoomListener();stopRoomListener=null;}
  if(stopAnimationListener){stopAnimationListener();stopAnimationListener=null;}
  lastGuestAnimationId=null;
+ guestAnimationInFlight.clear();
  currentRoomRef=ref(onlineDb,'roomIndex/'+code);
  // 공격 연출은 방 전체 데이터가 아니라 animation 노드만 별도로 구독한다.
  // 게스트 기기에서 다른 방 데이터 갱신과 관계없이 시작/피해 이벤트를 즉시 받도록 한다.
