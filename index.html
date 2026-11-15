@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.7</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.8</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.7 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.8 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -481,6 +481,10 @@ fate:{
  mh:{
   name:"MONSTER HUNTER",subtitle:"몬스터 헌터",icon:"✦",color:"#d78b62",
   characters:["malzeno","safi","legiana","violetRathian"]
+ },
+ blackClover:{
+  name:"BLACK CLOVER",subtitle:"블랙 클로버",icon:"☘",color:"#8acb83",
+  characters:["asta"]
  }
 };
 
@@ -597,6 +601,21 @@ const DATA={
  }
 
  ,
+ /* ====================== BLACK CLOVER ====================== */
+ asta:{
+  name:"아스타",title:"다섯 잎의 마도서",color:"#8acb83",
+  trait:"반 마법 — 공격 시 상대의 특성과 방어·특방 능력치 랭크 상승을 무시한다.",
+  stats:{hp:180,atk:130,def:100,tec:0,res:100,spd:100},
+  resource:"반 마법",max:0,
+  resourceDesc:"공격할 때 상대의 특성 및 방어·특방 능력치 랭크 상승을 무시한다.",
+  moves:[
+   M("astaDemonSlayer","단마의 검",100,8,100,0,"physical","물리 공격.",1),
+   M("astaDemonDweller","숙마의 검",50,6,100,1,"physical","우선도 +1의 물리 공격.",1),
+   M("astaDemonDestroyer","멸마의 검",70,8,90,0,"physical","명중 시 상대의 모든 능력치 랭크 변화를 초기화하고 자신의 상태이상을 모두 제거한다.",1,{effect:"astaCleanse"}),
+   M("astaBlackDivider","참마의 검-피안",140,3,100,0,"physical","사용 후 다음 자신의 턴에는 이 기술을 사용할 수 없다.",1,{cooldownTurns:3})
+  ]
+ },
+
  /* ====================== MONSTER HUNTER ====================== */
  malzeno:{
   name:"원초를 새기는 멜 제나",title:"은작룡",color:"#d9b5df",
@@ -1815,7 +1834,8 @@ function openProfile(id,runtimeFighter=null){
   currentGrid.innerHTML="";
  }
 
- $("profileResource").textContent=
+ $("profileResource").textContent=d.trait?
+  `특성 — ${d.trait}`:
   `${d.resource} — ${d.resourceDesc}`;
 
  $("profileMoves").innerHTML=d.moves.map((m,i)=>`
@@ -2504,7 +2524,9 @@ function damageByType(a,d,m,type){
 
  const physical=type==="physical";
  const attack=physical?statValue(a,"atk"):statValue(a,"tec");
- const defense=Math.max(1,physical?statValue(d,"def"):statValue(d,"res"));
+ const defenseKey=physical?"def":"res";
+ // 아스타의 반 마법: 상대의 기본 방어/특방은 남기고 랭크 상승만 무시한다.
+ const defense=Math.max(1,a.id==="asta"?(d.stats[defenseKey]||0):statValue(d,defenseKey));
 
  let power=powerOf(a,d,m);
 
@@ -3000,14 +3022,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.7: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.8: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.7 · HOST · "+message;
+   node.textContent="BUILD v0.29.8 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.7]",message);
+  console.log("[PF v0.29.8]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3075,6 +3097,20 @@ function onSuccessfulHit(a,d,m,order){
 
  if(sourceId==="gilgamesh"&&m.id==="chain")
   applyDebuff(d,"switchLock",3,a);
+
+ if(sourceId==="asta"&&m.effect==="astaCleanse"){
+  const changedRanks=Object.values(d.ranks||{}).some(v=>v!==0);
+  Object.keys(d.ranks||{}).forEach(k=>d.ranks[k]=0);
+  const hadAilment=!!(a.sleeping||a.frozen||a.burned||a.paralyzed||a.poisonType||a.poisoned||a.speedTurns||a.speedDebuff||a.switchLock);
+  a.sleeping=false;a.sleepCounter=0;
+  a.frozen=false;a.freezeFresh=false;
+  a.burned=false;a.paralyzed=false;
+  a.poisoned=0;a.poisonType=null;a.poisonTurns=0;
+  a.speedDebuff=0;a.speedTurns=0;
+  a.switchLock=0;a.switchLockFresh=false;
+  log("멸마의 검 발동! "+d.name+"의 모든 능력치 랭크 변화가 초기화되고 아스타의 상태이상이 해제되었다.");
+  announce("멸마의 검 — 능력치 변화 초기화 · 상태이상 해제!");
+ }
 
  if(sourceId==="frost"&&m.id==="ultimate")
   applyDebuff(d,"speed",{amount:-15,turns:2},a);
@@ -3379,6 +3415,8 @@ async function execute(side,index,moveOverride,order){
  /* 공중의 왕은 상승할 때 PP를 소모한다. 다음 턴 자동 공격에서는 재소모하지 않는다. */
  if(index>=0&&a.pp[index]!==null&&!airborneFollowUp)
   a.pp[index]--;
+ if(m.cooldownTurns)
+  a.cooldowns[m.id]=m.cooldownTurns;
 
  /* 기술을 사용한 시점에 기록한다.
     빗나가더라도 사용 기록은 남는다. */
@@ -3509,7 +3547,7 @@ async function execute(side,index,moveOverride,order){
 
   await playOnlineFX(side,a,currentMove,true,()=>{
    damage=damageOf(a,d,currentMove,chosenType);
-   actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits});
+   actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits||a.id==="asta"});
 
    if(actual>0){
     total+=actual;
@@ -5146,7 +5184,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.7";
+const PF_BUILD_VERSION="v0.29.8";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5336,7 +5374,7 @@ function listenRoom(code){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
   }
-  // v0.29.7: 부모 room 구독에서도 전투 문구를 수신한다.
+  // v0.29.8: 부모 room 구독에서도 전투 문구를 수신한다.
   // battleState 적용이 announcement를 덮더라도, 호스트의 최신 문구를 마지막에 표시한다.
   if(currentRole==="guest"&&room.battleMessage){
    const syncedMessage=room.battleMessage;
