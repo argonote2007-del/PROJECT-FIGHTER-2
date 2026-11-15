@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.3</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.4</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.3 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.4 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -2985,20 +2985,21 @@ async function playFX(side,user,m,hit,onImpact,durationOverride){
 
 /* 온라인 대전: 방장의 판정은 그대로 유지하고, 게스트에게 동일한 FX/피해 표시를 재생한다. */
 async function waitForOnlineAnimationStart(startAt){
- const target=Number(startAt)||Date.now()+onlineServerTimeOffset;
- const remaining=target-(Date.now()+onlineServerTimeOffset);
+ const serverOffset=Number(window.onlineServerTimeOffset)||0;
+ const target=Number(startAt)||Date.now()+serverOffset;
+ const remaining=target-(Date.now()+serverOffset);
  if(remaining>0)await delay(remaining);
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.3: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.4: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.3 · HOST · "+message;
+   node.textContent="BUILD v0.29.4 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.3]",message);
+  console.log("[PF v0.29.4]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3014,7 +3015,7 @@ async function playOnlineFX(side,user,m,hit,onImpact){
   event=await window.onlinePublishAnimationStart({
    turn:battle.turn,side,attackerId:user.id,move:m,hit:!!hit,
    duration:fast?(isUltimate(m)?480:300):(isUltimate(m)?950:620),
-   startAt:Date.now()+onlineServerTimeOffset+1800
+   startAt:Date.now()+(Number(window.onlineServerTimeOffset)||0)+1800
   });
  }catch(err){
   const message="이벤트 전송 실패 · "+String(err&&err.message?err.message:err);
@@ -5086,8 +5087,10 @@ const onlineApp=initializeApp(firebaseConfig);
 const onlineAuth=getAuth(onlineApp);
 const onlineDb=getDatabase(onlineApp);
 let onlineServerTimeOffset=0;
+window.onlineServerTimeOffset=0;
 onValue(ref(onlineDb,'.info/serverTimeOffset'),snap=>{
  onlineServerTimeOffset=Number(snap.val())||0;
+ window.onlineServerTimeOffset=onlineServerTimeOffset;
 });
 let onlineUser=null, currentRoomCode=null, currentRoomRef=null, stopRoomListener=null, stopAnimationListener=null, currentRole=null;
 let onlineStateRevision=0, lastAppliedBattleRevision=0;
@@ -5111,7 +5114,7 @@ window.onlinePublishBattleState=async()=>{
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleState'),{revision:onlineStateRevision,state,updatedAt:Date.now()});
 };
 
-const PF_BUILD_VERSION="v0.29.3";
+const PF_BUILD_VERSION="v0.29.4";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
