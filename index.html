@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.9</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.11</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.9 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.11 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -527,7 +527,7 @@ const DATA={
    M("wisdom","백성의 예지",0,10,100,0,"status",
     "이번 전투에서 사용된 기술 하나를 복사한다. 복사한 기술은 각각 한 번만 복사할 수 있다.",1,{effect:"copy"}),
    M("enkiduUltimate","에누마 엘리시",0,5,90,0,"physical",
-    "물리 공격. 현재 위력은 상대가 이번 전투에서 사용한 궁극기 횟수 × 50으로 결정된다.",1,{ultimate:true,effect:"enkiduUltimate"})
+    "물리 공격. 현재 위력은 엘키두의 출전 시점과 관계없이 전투 전체에서 양측이 사용한 궁극기 누적 횟수 × 50으로 결정된다. 궁극기가 추가로 사용될 때마다 위력도 상승한다.",1,{ultimate:true,effect:"enkiduUltimate"})
   ]
  },
 
@@ -763,7 +763,8 @@ window.pfAssetAdmin=false;
 
 function active(side){
  if(!battle||!battle[side])return null;
- return battle[side].team[battle[side].activeIndex];
+ const f=battle[side].team[battle[side].activeIndex];
+ return f;
 }
 
 function movesOf(f){
@@ -895,7 +896,8 @@ function applyDebuff(target,type,value,source){
  if(type==="freeze"){
   if(target.frozen){log(target.name+"은(는) 이미 빙결 상태다. 중첩되지 않는다.");return false;}
   target.frozen=true;target.freezeFresh=true;
-  log(target.name+"이(가) 빙결 상태가 되었다!");
+  target.freezeActionsRemaining=Math.random()<0.5?2:1;
+  log(target.name+"이(가) 빙결 상태가 되었다!"+(target.freezeActionsRemaining===2?" 50% 확률로 다음 턴까지 지속된다.":" 다음 행동까지 지속된다."));
   return true;
  }
  if(type==="burn"||type==="paralysis"){
@@ -1002,6 +1004,7 @@ function makeFighter(id){
   bloodActive:false,
   frozen:false,
   freezeFresh:false,
+  freezeActionsRemaining:0,
   burned:false,
   paralyzed:false,
   airborne:false,
@@ -1844,7 +1847,7 @@ function openProfile(id,runtimeFighter=null){
    <b>${i+1}. ${m.name}</b>
    <small>
     ${typeName(m.type)} · 위력 ${
-     (m.effect==="enkiduUltimate"?"상대 궁극기 횟수 × 50":m.hits>1?m.power+" × "+m.hits:m.power||"—")
+     (m.effect==="enkiduUltimate"?"전투 전체 양측 궁극기 누적 횟수 × 50":m.hits>1?m.power+" × "+m.hits:m.power||"—")
     } · 명중 ${m.accuracy}% · PP ${ppText(m.pp)} · 우선도 ${
      m.priority>0?"+":""
     }${m.priority}
@@ -1996,9 +1999,9 @@ function resourceHTML(f){
   amount=f.allocatedAtk;
   max=300;
   note="이번 턴 ATK "+f.stats.atk+" / SPD "+f.stats.spd;
-  const opponent=active("cpu");
-  const currentPower=opponent?Math.max(0,Number(opponent.ultimateCount)||0)*50:0;
-  note+=" · 에누마 엘리시 현재 위력 "+currentPower;
+  const totalUses=Math.max(0,Number(battle&&battle.totalUltimateUses)||0);
+  const currentPower=totalUses*50;
+  note+=" · 전투 전체 궁극기 "+totalUses+"회 · 에누마 엘리시 현재 위력 "+currentPower;
  }else if(f.id==="merlin"){
   amount=f.illusionAvailable?1:0;
   max=1;
@@ -2412,10 +2415,8 @@ $("detailClose").onclick=()=>
  $("detail").classList.add("hidden");
 
 function displayedMovePower(f,m){
- if(f&&f.id==="enkidu"&&m&&m.effect==="enkiduUltimate"){
-  const opponent=active("cpu");
-  return opponent?Math.max(0,Number(opponent.ultimateCount)||0)*50:0;
- }
+ if(f&&f.id==="enkidu"&&m&&m.effect==="enkiduUltimate")
+  return Math.max(0,Number(battle&&battle.totalUltimateUses)||0)*50;
  return m?(m.power||0):0;
 }
 
@@ -2543,7 +2544,7 @@ function damageByType(a,d,m,type){
  let power=powerOf(a,d,m);
 
  if(m.effect==="enkiduUltimate")
-  power=d.ultimateCount*50;
+  power=Math.max(0,Number(battle&&battle.totalUltimateUses)||0)*50;
 
  if(m.effect==="richardSword"&&a.id==="richard")
   power=m.power;
@@ -2682,7 +2683,7 @@ function chooseCPUAction(f,opponent){
    let power=m.power||0;
 
    if(m.effect==="enkiduUltimate")
-    power=opponent.ultimateCount*50;
+    power=Math.max(0,Number(battle&&battle.totalUltimateUses)||0)*50;
 
    score=power*(m.hits||1)*m.accuracy/100;
 
@@ -3034,14 +3035,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.9: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.11: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.9 · HOST · "+message;
+   node.textContent="BUILD v0.29.11 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.9]",message);
+  console.log("[PF v0.29.11]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3115,7 +3116,7 @@ function onSuccessfulHit(a,d,m,order){
   Object.keys(d.ranks||{}).forEach(k=>d.ranks[k]=0);
   const hadAilment=!!(a.sleeping||a.frozen||a.burned||a.paralyzed||a.poisonType||a.poisoned||a.speedTurns||a.speedDebuff||a.switchLock);
   a.sleeping=false;a.sleepCounter=0;
-  a.frozen=false;a.freezeFresh=false;
+  a.frozen=false;a.freezeFresh=false;a.freezeActionsRemaining=0;
   a.burned=false;a.paralyzed=false;
   a.poisoned=0;a.poisonType=null;a.poisonTurns=0;
   a.speedDebuff=0;a.speedTurns=0;
@@ -3403,8 +3404,18 @@ async function execute(side,index,moveOverride,order){
 
  /* 빙결 중에는 한 턴 행동하지 못한다. */
  if(a.frozen){
-  a.frozen=false;a.freezeFresh=false;
-  log(a.name+"은(는) 빙결되어 행동할 수 없다.");announce("빙결 — 행동 불가!");
+  const remaining=Math.max(1,Number(a.freezeActionsRemaining)||1);
+  a.freezeActionsRemaining=remaining-1;
+  if(a.freezeActionsRemaining<=0){
+   a.frozen=false;a.freezeFresh=false;a.freezeActionsRemaining=0;
+   log(a.name+"은(는) 빙결되어 행동할 수 없다. 빙결이 해제되었다.");
+   announce("빙결 — 행동 불가!");
+  }else{
+   a.freezeFresh=false;
+   log(a.name+"은(는) 빙결되어 행동할 수 없다. 빙결이 다음 턴까지 지속된다.");
+   announce("빙결 지속 — 행동 불가!");
+  }
+  renderBattle();
   return;
  }
 
@@ -3438,8 +3449,10 @@ async function execute(side,index,moveOverride,order){
  announce(a.name+"의 "+m.name+"!");
  await captionDelay(1000);
 
- if(isUltimate(m))
+ if(isUltimate(m)){
   a.ultimateCount++;
+  battle.totalUltimateUses=(Number(battle.totalUltimateUses)||0)+1;
+ }
 
  const sourceId=m.sourceId||a.id;
 
@@ -3466,12 +3479,12 @@ async function execute(side,index,moveOverride,order){
 
  /* 엘키두 궁극기 */
  if(m.effect==="enkiduUltimate"){
-  const power=d.ultimateCount*50;
+  const power=Math.max(0,Number(battle&&battle.totalUltimateUses)||0)*50;
   currentMove.power=power;
 
   if(power<=0){
    a.lastMove=m.id;
-   log("상대의 궁극기 사용 횟수가 0회라 위력이 발생하지 않았다.");
+   log("전투 전체 궁극기 사용 횟수가 0회라 위력이 발생하지 않았다.");
    announce("에누마 엘리시 — 위력 0");
    await captionDelay(1400);
    return;
@@ -3936,7 +3949,7 @@ async function startBattle(){
   logs:[],
   history:[],
   copiedKeys:new Set(),
-  field:null
+  field:null,totalUltimateUses:0
  };
 
  /* 멀린은 환술로 HP 60 상태에서 시작 */
@@ -4427,7 +4440,7 @@ execute=async function(side,index,moveOverride,order){
 })();
 
 /* v0.25.3 — 클래스 배지 및 클래스 선택 화면에서 전체 상성표 표시 */
-function v25OpenClassChart(returnToClassPicker=false){
+function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false){
  const rows=CLASS_NAMES.map(att=>{
   const cells=CLASS_NAMES.map(def=>{
    const mult=classMultiplier(att,def),label=classMultiplierLabel(mult);
@@ -4448,6 +4461,7 @@ function v25OpenClassChart(returnToClassPicker=false){
   <button class="btn primary full" id="v25CloseClassChart" style="margin-top:12px">닫기</button>`);
  $("v25CloseClassChart").onclick=()=>{
   if(returnToClassPicker)v24RenderClassPicker();
+  else if(returnToSwitchPicker)v24ShowSwitchPicker();
   else closeSystemModal();
  };
 }
@@ -4764,7 +4778,7 @@ function v24BeginOnlineBattle(){
   mode:"team",
   player:{team:makeTeam(v24Lineup,v24DraftClasses),roster:v24DraftSix.slice(),activeIndex:0},
   cpu:{team:makeTeam(window.onlineOpponentLineup,v24CpuClasses),roster:v24CpuSix.slice(),activeIndex:0},
-  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null
+  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0
  };
  ["player","cpu"].forEach(side=>battle[side].team.forEach(f=>{if(f.id==="merlin")f.hp=60;}));
  busy=true;selectedMove=null;clearFX();closeSystemModal();
@@ -4825,7 +4839,7 @@ function v24BeginBattle(){
   mode:"team",
   player:{team:makeTeam(v24Lineup,v24DraftClasses),roster:v24DraftSix.slice(),activeIndex:0},
   cpu:{team:makeTeam(cpuLineup,v24CpuClasses),roster:v24CpuSix.slice(),activeIndex:0},
-  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null
+  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0
  };
  ["player","cpu"].forEach(side=>{
   battle[side].team.forEach(f=>{if(f.id==="merlin")f.hp=60;});
@@ -4885,11 +4899,12 @@ function v24ShowSwitchPicker(){
  if(f.switchLock>0){announce("현재 교체가 봉쇄되어 있어.");return;}
  const options=battle.player.team.map((x,i)=>({x,i})).filter(v=>v.i!==battle.player.activeIndex&&v.x.hp>0);
  if(!options.length){announce("교체할 수 있는 생존 캐릭터가 없어.");return;}
- openSystemModal(`<h2>CHANGE FIGHTER · 교체</h2><p>교체는 이번 턴 행동을 소비해. 대기 중인 캐릭터의 상태 효과와 남은 지속시간은 유지돼.</p><div id="v24SwitchOptions"></div><button class="btn full" id="v24SwitchCancel" style="margin-top:8px">취소</button>`);
+ openSystemModal(`<h2>CHANGE FIGHTER · 교체</h2><p>교체는 이번 턴 행동을 소비해. 대기 중인 캐릭터의 상태 효과와 남은 지속시간은 유지돼.</p><button class="btn full" id="v24SwitchClassChart" style="margin:6px 0 10px">클래스 상성표 보기</button><div id="v24SwitchOptions"></div><button class="btn full" id="v24SwitchCancel" style="margin-top:8px">취소</button>`);
+ $("v24SwitchClassChart").onclick=()=>v25OpenClassChart(false,true);
  const box=$("v24SwitchOptions");
  options.forEach(({x,i})=>{
   const b=document.createElement("button");b.className="v24TeamCard";b.style.width="100%";b.style.margin="6px 0";
-  b.innerHTML=`${portrait(x.id)}<span><b>${x.name}</b><small>HP ${x.hp}/${x.maxHp} · 교체 후 출전</small></span>`;
+  b.innerHTML=`${portrait(x.id)}<span><b>${x.name}</b><small>현재 클래스 · ${x.className||"미지정"} · HP ${x.hp}/${x.maxHp} · 교체 후 출전</small></span>`;
   b.onclick=()=>{closeSystemModal();playTurn(-2,{isSwitch:true,targetIndex:i,priority:6,name:"교체",type:"status"});};
   box.appendChild(b);
  });
@@ -5196,7 +5211,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.9";
+const PF_BUILD_VERSION="v0.29.11";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5386,7 +5401,7 @@ function listenRoom(code){
    lastAppliedBattleRevision=Number(room.battleState.revision||0);
    if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
   }
-  // v0.29.9: 부모 room 구독에서도 전투 문구를 수신한다.
+  // v0.29.10: 부모 room 구독에서도 전투 문구를 수신한다.
   // battleState 적용이 announcement를 덮더라도, 호스트의 최신 문구를 마지막에 표시한다.
   if(currentRole==="guest"&&room.battleMessage){
    const syncedMessage=room.battleMessage;
