@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.11</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.12</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.11 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.12 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -668,6 +668,14 @@ const DATA={
  }
 
 };
+
+/* v0.29.12: 기본 규칙 — 모든 캐릭터의 네 번째 기술은 궁극기.
+   개별 캐릭터 데이터에 ultimate:true가 빠져 있어도 전투 판정에 반영한다. */
+Object.values(DATA).forEach(character=>{
+ if(Array.isArray(character.moves)&&character.moves[3]){
+  character.moves[3].ultimate=true;
+ }
+});
 
 /* FATE CLASS SYSTEM — 사용자 지정 상성 */
 const CLASS_NAMES=["세이버","아처","랜서","라이더","캐스터","어새신","버서커","쉴더","룰러","어벤져","문캔서","얼터에고","프리텐더","포리너"];
@@ -3035,14 +3043,14 @@ async function waitForOnlineAnimationStart(startAt){
 }
 
 async function playOnlineFX(side,user,m,hit,onImpact){
- // v0.29.11: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
+ // v0.29.12: 온라인 연출 함수 진입/분기/전송 오류를 화면에 직접 표시한다.
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.11 · HOST · "+message;
+   node.textContent="BUILD v0.29.12 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.11]",message);
+  console.log("[PF v0.29.12]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5211,7 +5219,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.11";
+const PF_BUILD_VERSION="v0.29.12";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
