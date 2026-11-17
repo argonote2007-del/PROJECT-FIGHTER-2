@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.16</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.17</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -269,7 +269,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.16 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.17 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -398,7 +398,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.16 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.17 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -810,7 +810,7 @@ let audio=null;
 let profileOpen=false;
 let previousFocus=null;
 let allocationValue=150;
-const art={},transformArt={},vfx={};
+const art={},transformArt={},vfx={},artVersion={};
 window.pfAssetAdmin=false;
 
 function active(side){
@@ -1322,6 +1322,8 @@ async function dbDelete(key){
 function setURL(store,key,blob){
  if(store[key])URL.revokeObjectURL(store[key]);
  store[key]=blob?URL.createObjectURL(blob):null;
+ const slot=(store===transformArt?"transform:":"normal:")+key;
+ artVersion[slot]=(artVersion[slot]||0)+1;
 }
 
 /* =========================================================
@@ -2034,7 +2036,7 @@ function log(s){
    COMMON TRANSFORMATION SYSTEM
    변신은 행동 선택 이후, 양측 기술 실행/속도 판정 전에 처리한다.
 ========================================================= */
-function applyTransformation(f){
+function applyTransformation(f,options={}){
  if(!f||!f.transformPending||f.transformed)return false;
  const config=DATA[f.id]?.transform;
  if(!config)return false;
@@ -2045,7 +2047,7 @@ function applyTransformation(f){
   f.stats.tec=Math.round(f.stats.tec*1.5);
  }
  log(f.name+"의 "+config.name+" 발동! "+config.formName+" 상태가 되었다.");
- announce(config.name+" — "+config.formName+"!");
+ if(!options.silent)announce(config.name+" — "+config.formName+"!");
  return true;
 }
 
@@ -2060,6 +2062,53 @@ function revertTransformation(f){
  f.transformPending=true;
  if(config)log(f.name+"의 변신 전송이 취소되어 대기 상태로 돌아갔다.");
 }
+
+async function resolveTransformationsBeforeActions(playerF,enemyF){
+ const playerPending=!!(playerF&&playerF.transformPending&&!playerF.transformed);
+ const enemyPending=!!(enemyF&&enemyF.transformPending&&!enemyF.transformed);
+ if(!playerPending&&!enemyPending)return;
+ const onlineHost=!!(window.onlineBattleActive&&window.onlineRole==="host"&&typeof window.onlinePublishTransformationEvent==="function");
+ let startAt=Date.now()+(Number(window.onlineServerTimeOffset)||0)+450;
+ if(onlineHost){
+  await window.onlinePublishTransformationEvent({
+   hostId:playerF.id,guestId:enemyF.id,
+   hostTransform:playerPending,guestTransform:enemyPending,
+   startAt,text:[playerPending?DATA[playerF.id]?.transform?.name:null,enemyPending?DATA[enemyF.id]?.transform?.name:null].filter(Boolean).join(" · ")+" 변신!"
+  });
+  await waitForOnlineAnimationStart(startAt);
+  if(playerPending)applyTransformation(playerF,{silent:true});
+  if(enemyPending)applyTransformation(enemyF,{silent:true});
+  renderBattle();
+  const text=[playerPending?DATA[playerF.id]?.transform?.name:null,enemyPending?DATA[enemyF.id]?.transform?.name:null].filter(Boolean).join(" · ")+" 변신 완료!";
+  $("announcement").textContent=text;
+  await delay(850);
+  return;
+ }
+ // 오프라인 대전에서는 변신 연출과 이미지 전환을 먼저 끝낸 뒤 기술을 실행한다.
+ if(playerPending)applyTransformation(playerF);
+ if(enemyPending)applyTransformation(enemyF);
+ renderBattle();
+ await delay(850);
+}
+
+let lastReceivedTransformEventId=null;
+async function receiveOnlineTransformationEvent(event){
+ if(!event||!battle||window.onlineRole!=="guest"||event.id===lastReceivedTransformEventId)return;
+ lastReceivedTransformEventId=event.id;
+ await waitForOnlineAnimationStart(event.startAt);
+ const guestF=active("player");
+ const hostF=active("cpu");
+ if(event.guestTransform&&guestF&&guestF.id===event.guestId&&!guestF.transformed){
+  guestF.transformPending=true;applyTransformation(guestF,{silent:true});
+ }
+ if(event.hostTransform&&hostF&&hostF.id===event.hostId&&!hostF.transformed){
+  hostF.transformPending=true;applyTransformation(hostF,{silent:true});
+ }
+ renderBattle();
+ const node=document.getElementById("announcement");
+ if(node)node.textContent=String(event.text||"변신 완료!");
+}
+window.receiveOnlineTransformationEvent=receiveOnlineTransformationEvent;
 
 /* =========================================================
    BATTLE UI / RESOURCE
@@ -2232,10 +2281,13 @@ function renderBattle(){
  for(const [side,f] of [["player",p],["enemy",e]]){
   const box=$(side+"Art");
   const transformed=!!f.transformed;
-  if(box.dataset.id!==f.id||box.dataset.transformed!==String(transformed)){
+  const artSlot=(transformed?"transform:":"normal:")+f.id;
+  const currentArtVersion=String(artVersion[artSlot]||0);
+  if(box.dataset.id!==f.id||box.dataset.transformed!==String(transformed)||box.dataset.artVersion!==currentArtVersion){
    box.innerHTML=portrait(f.id,transformed);
    box.dataset.id=f.id;
    box.dataset.transformed=String(transformed);
+   box.dataset.artVersion=currentArtVersion;
   }
   box.classList.toggle("spiritDive",transformed);
   box.classList.toggle("hasTransformArt",!!(transformed&&transformArt[f.id]));
@@ -3142,10 +3194,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.16 · HOST · "+message;
+   node.textContent="BUILD v0.29.17 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.16]",message);
+  console.log("[PF v0.29.17]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4013,10 +4065,7 @@ async function playTurn(index,moveOverride){
   try{
    const allocation=p.id==="enkidu"?{atk:p.stats.atk,spd:p.stats.spd,allocatedAtk:p.allocatedAtk,allocatedSpd:p.allocatedSpd}:null;
    const transform=!!p.transformPending;
-   if(transform)applyTransformation(p);
-   try{
-    await window.onlineSubmitAction({turn:battle.turn,index,move:moveOverride||null,allocation,transform});
-   }catch(sendErr){if(transform)revertTransformation(p);throw sendErr;}
+   await window.onlineSubmitAction({turn:battle.turn,index,move:moveOverride||null,allocation,transform});
    renderBattle();
    announce("행동 전송 완료 · 방장의 턴 처리를 기다리는 중...");
   }catch(err){busy=false;battle.phase="select";renderBattle();alert("행동 전송 실패: "+(err.message||err));}
@@ -4037,7 +4086,7 @@ async function playTurn(index,moveOverride){
    e.allocatedAtk=Number(remoteAction.allocation.allocatedAtk)||e.stats.atk;
    e.allocatedSpd=Number(remoteAction.allocation.allocatedSpd)||e.stats.spd;
   }
-  if(remoteAction.transform&&e.transformPending!==false){e.transformPending=true;applyTransformation(e);}
+  if(remoteAction.transform)e.transformPending=true;
   cpuChoice={index:Number.isInteger(remoteAction.index)?remoteAction.index:-1,move:remoteAction.move||null};
  }else{
   cpuChoice=v25PrepareCpuRichardAction(chooseCPUAction(e,p),e);
@@ -4048,9 +4097,9 @@ async function playTurn(index,moveOverride){
   enemyIndex===-1?STRUGGLE:movesOf(e)[enemyIndex]
  );
 
- // 두 플레이어의 변신은 우선도/스피드 비교 전에 동시에 확정한다.
- if(p.transformPending)applyTransformation(p);
- if(e.transformPending)applyTransformation(e);
+ // 양측 기술이 실행되기 전에 변신 단계를 별도로 완료한다.
+ // 온라인에서는 방장이 시작 시각을 발행하고 게스트도 같은 시각에 일러스트를 전환한다.
+ await resolveTransformationsBeforeActions(p,e);
 
  if(battle.mode==="team")battle.turnInterruptedByFaint=false;
 
@@ -5459,8 +5508,19 @@ window.onlinePublishBattleMessage=async(message)=>{
  });
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
+window.onlinePublishTransformationEvent=async(payload)=>{
+ if(currentRole!=="host"||!currentRoomCode||!onlineUser)throw new Error("온라인 변신 이벤트를 전송할 수 없어.");
+ const id=Date.now()+"_transform_"+(++onlineMessageSequence);
+ await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleMessage'),{
+  id,kind:"transformation",text:String(payload.text||"변신 시작!"),
+  hostId:payload.hostId,guestId:payload.guestId,
+  hostTransform:!!payload.hostTransform,guestTransform:!!payload.guestTransform,
+  startAt:Number(payload.startAt)||Date.now(),sentAt:Date.now()
+ });
+ pfDiag("양측 변신 시작 이벤트 전송");
+};
 
-const PF_BUILD_VERSION="v0.29.16";
+const PF_BUILD_VERSION="v0.29.17";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5632,6 +5692,9 @@ function listenRoom(code){
    const message=snap.val()||{};
    if(!message.id||message.id===lastGuestBattleMessageId)return;
    lastGuestBattleMessageId=message.id;
+   if(message.kind==="transformation"&&typeof window.receiveOnlineTransformationEvent==="function"){
+    window.receiveOnlineTransformationEvent(message).catch(err=>console.error("온라인 변신 적용 실패",err));
+   }
    const node=document.getElementById("announcement");
    if(node)node.textContent=String(message.text||"");
   },err=>{
@@ -5656,6 +5719,9 @@ function listenRoom(code){
    const syncedMessage=room.battleMessage;
    if(syncedMessage.id&&syncedMessage.id!==lastRoomBattleMessageId){
     lastRoomBattleMessageId=syncedMessage.id;
+    if(syncedMessage.kind==="transformation"&&typeof window.receiveOnlineTransformationEvent==="function"){
+     window.receiveOnlineTransformationEvent(syncedMessage).catch(err=>console.error("온라인 변신 적용 실패",err));
+    }
     const announcementNode=document.getElementById("announcement");
     if(announcementNode)announcementNode.textContent=String(syncedMessage.text||"");
     pfDiag("전투 문구 수신 · "+String(syncedMessage.text||"").slice(0,24));
