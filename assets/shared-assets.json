@@ -1,5 +1,5 @@
 {
-  "version": 1794754291478,
+  "version": 1794915381382,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -28,6 +28,10 @@
     "asta": {
       "path": "assets/shared/art/asta.png",
       "name": "아스타"
+    },
+    "magnaSwing": {
+      "path": "assets/shared/art/magnaSwing.png",
+      "name": "마그나 스윙"
     },
     "malzeno": {
       "path": "assets/shared/art/malzeno.png",
