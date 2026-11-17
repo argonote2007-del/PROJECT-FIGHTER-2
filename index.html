@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.13</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.14</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.13 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.14 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -618,10 +618,10 @@ const DATA={
 
  magnaSwing:{
   name:"마그나 스윙",title:"근성",color:"#d66d45",
-  trait:"근성 — HP가 최대인 턴에 HP가 0이 되는 피해를 받으면 HP 1로 버틴다.",
+  trait:"근성 — HP가 최대인 턴에 HP가 0이 되는 피해를 받으면 HP 1로 버틴다. 현재 HP가 1이면 주는 피해가 2배가 된다.",
   stats:{hp:180,atk:50,def:70,tec:50,res:60,spd:90},
   resource:"근성",max:0,
-  resourceDesc:"턴 시작 시 HP가 최대라면 그 턴에 치명적인 피해를 한 번 HP 1로 버틴다. 기술 근성은 사용한 턴에 치명적인 피해를 HP 1로 버틴다.",
+  resourceDesc:"턴 시작 시 HP가 최대라면 그 턴에 치명적인 피해를 한 번 HP 1로 버틴다. 현재 HP가 1이면 주는 피해가 2배가 된다. 기술 근성은 사용한 턴에 치명적인 피해를 HP 1로 버틴다.",
   moves:[
    M("magnaBurnKnuckle","번 너클",75,10,100,0,"physical","물리 공격."),
    M("magnaExplosiveFireball","극대 폭살 굉염 마구",100,8,85,0,"special","특수 공격."),
@@ -2584,6 +2584,10 @@ function damageByType(a,d,m,type){
  if(a.className&&d.className)
   result=Math.max(1,Math.floor(result*classMultiplier(a.className,d.className)));
 
+ // 마그나 스윙의 근성: 현재 HP가 정확히 1이면 최종 가하는 피해가 2배.
+ if(a.id==="magnaSwing"&&a.hp===1)
+  result*=2;
+
  return result;
 }
 
@@ -3074,10 +3078,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.13 · HOST · "+message;
+   node.textContent="BUILD v0.29.14 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.13]",message);
+  console.log("[PF v0.29.14]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5305,7 +5309,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.13";
+const PF_BUILD_VERSION="v0.29.14";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
