@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.15</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.16</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -246,9 +246,9 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .playerArt .v24SwitchIcon:active{transform:scale(.92)}
  .playerArt .v24SwitchIcon:disabled{opacity:.38;filter:grayscale(.7)}
 .playerArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
-.playerArt.spiritDive img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
+.playerArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
 .enemyArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
-.enemyArt.spiritDive img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
+.enemyArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
 .playerArt.spiritDive:after{content:"SPIRIT DIVE · 정령동화";position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:7;white-space:nowrap;padding:5px 9px;border:1px solid #8beaff;border-radius:20px;background:#12334acc;color:#c9f8ff;font-size:9px;font-weight:1000;box-shadow:0 0 16px #4edbff99;pointer-events:none}
 .playerArt .v29TransformBtn{position:absolute;right:4px;bottom:53px;z-index:9;min-width:82px;min-height:29px;padding:5px 8px;border:1px solid #73d9e8;border-radius:8px;background:linear-gradient(145deg,#17394aee,#0b1725ee);color:#bff8ff;font-size:9px;font-weight:1000;box-shadow:0 3px 10px #0009}
 .playerArt .v29TransformBtn.pending,.playerArt .v29TransformBtn.transformed{background:linear-gradient(145deg,#72e8f4,#267b9b);color:#061522;border-color:#d4fbff;box-shadow:0 0 14px #72e8f4aa}
@@ -269,7 +269,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.15 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.16 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -398,7 +398,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.15 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.16 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -810,7 +810,7 @@ let audio=null;
 let profileOpen=false;
 let previousFocus=null;
 let allocationValue=150;
-const art={},vfx={};
+const art={},transformArt={},vfx={};
 window.pfAssetAdmin=false;
 
 function active(side){
@@ -1559,10 +1559,10 @@ async function restoreAssets(){
 
   for(const id of IDS){
    const blob=await dbRead(id);
-
-   if(blob){
-    setURL(art,id,blob);
-    a++;
+   if(blob){setURL(art,id,blob);a++;}
+   if(DATA[id]&&DATA[id].transform){
+    const transformedBlob=await dbRead("art-transform:"+id);
+    if(transformedBlob)setURL(transformArt,id,transformedBlob);
    }
   }
 
@@ -1592,51 +1592,43 @@ async function restoreAssets(){
  }
 }
 
-function portrait(id){
+function portrait(id,transformed=false){
  const d=DATA[id];
-
+ const src=transformed?(transformArt[id]||art[id]):art[id];
  return `<div class="portrait" style="--portraitColor:${d.color}">${
-  art[id]?
-  `<img src="${art[id]}" alt="${d.name}" draggable="false">`:
+  src?`<img src="${src}" alt="${d.name}${transformed?" · 변신":""}" draggable="false">`:
   `<div class="fallback">${id==="gilgamesh"?"王":id==="enkidu"?"鎖":id==="richard"?"♛":id==="merlin"?"✦":d.name[0]}</div>`
  }</div>`;
 }
 
 function renderArtUploads(){
  $("artUploads").innerHTML="";
-
  IDS.forEach(id=>{
-  const box=document.createElement("label");
-  box.className="uploadSlot";
-
-  const title=document.createElement("b");
-  title.textContent=DATA[id].name;
-
-  const input=document.createElement("input");
-  input.type="file";
-  input.accept="image/*";
-  input.disabled=!window.pfAssetAdmin;
-
-  input.onchange=async()=>{
-   const file=input.files[0];
-   if(!file||!file.type.startsWith("image/"))return;
-   if(!window.pfAssetAdmin){$("status").textContent="이미지 등록은 GitHub 저장소에서 관리합니다.";input.value="";return;}
-
-   try{
-    await dbWrite(id,file);
-    setURL(art,id,file);
-    throw new Error("이미지 등록은 GitHub 저장소에서 관리합니다.");
-   }catch(e){
-    setURL(art,id,file);
-    $("status").textContent="기기 임시 저장은 완료했지만 클라우드 업로드 실패: "+(e.message||e);
-   }
-
-   renderCards();
-   input.value="";
+  const d=DATA[id];
+  const makeSlot=(label,key,isTransform)=>{
+   const box=document.createElement("label");
+   box.className="uploadSlot";
+   const title=document.createElement("b");
+   title.textContent=d.name+" · "+label;
+   const input=document.createElement("input");
+   input.type="file";input.accept="image/*";input.disabled=!window.pfAssetAdmin;
+   input.onchange=async()=>{
+    const file=input.files&&input.files[0];
+    if(!file||!file.type.startsWith("image/"))return;
+    if(!window.pfAssetAdmin){$("status").textContent="이미지 등록은 GitHub 저장소에서 관리합니다.";input.value="";return;}
+    try{
+     if(isTransform){await dbWrite("art-transform:"+id,file);setURL(transformArt,id,file);}
+     else{await dbWrite(id,file);setURL(art,id,file);}
+     $("status").textContent=d.name+"의 "+label+" 저장 완료. ZIP 내보내기로 GitHub에 반영해 줘.";
+    }catch(e){$("status").textContent="이미지 저장 실패: "+(e.message||e);}
+    renderCards();
+    if(battle)renderBattle();
+    input.value="";
+   };
+   box.append(title,input);$("artUploads").appendChild(box);
   };
-
-  box.append(title,input);
-  $("artUploads").appendChild(box);
+  makeSlot("일반 일러스트",id,false);
+  if(d.transform)makeSlot("변신 일러스트","art-transform:"+id,true);
  });
 }
 
@@ -2239,15 +2231,14 @@ function renderBattle(){
 
  for(const [side,f] of [["player",p],["enemy",e]]){
   const box=$(side+"Art");
-
-   if(box.dataset.id!==f.id){
-   box.innerHTML=portrait(f.id);
+  const transformed=!!f.transformed;
+  if(box.dataset.id!==f.id||box.dataset.transformed!==String(transformed)){
+   box.innerHTML=portrait(f.id,transformed);
    box.dataset.id=f.id;
-   box.dataset.transformed=String(!!f.transformed);
-  }else if(box.dataset.transformed!==String(!!f.transformed)){
-   box.dataset.transformed=String(!!f.transformed);
+   box.dataset.transformed=String(transformed);
   }
-  box.classList.toggle("spiritDive",!!f.transformed);
+  box.classList.toggle("spiritDive",transformed);
+  box.classList.toggle("hasTransformArt",!!(transformed&&transformArt[f.id]));
  }
 
  renderMoves();
@@ -3151,10 +3142,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.15 · HOST · "+message;
+   node.textContent="BUILD v0.29.16 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.15]",message);
+  console.log("[PF v0.29.16]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4338,7 +4329,11 @@ window.collectLocalPFAssets=async()=>{
  const items=[];
  for(const id of IDS){
   const blob=await dbRead(id);
-  if(blob)items.push({path:"art/"+id,blob,name:DATA[id].name,kind:"art",id});
+  if(blob)items.push({path:"art/"+id,blob,name:DATA[id].name+" · 일반 일러스트",kind:"art",id});
+  if(DATA[id]&&DATA[id].transform){
+   const transformedBlob=await dbRead("art-transform:"+id);
+   if(transformedBlob)items.push({path:"art-transform/"+id,blob:transformedBlob,name:DATA[id].name+" · 변신 일러스트",kind:"artTransform",id});
+  }
  }
  for(const id of VFX_IDS){
   const blob=await dbRead(vfxKey(id));
@@ -4404,9 +4399,10 @@ async function exportLocalPFAssetsZip(){
   const files=[];
   for(const item of items){
    const ext=pfBlobExtension(item.blob);
-   const group=item.kind==="art"?"art":item.kind==="vfx"?"vfx":"backgrounds";
-   const filePath="assets/shared/"+group+"/"+item.id.replace(":","__")+"."+ext;
-   const key=item.kind==="vfx"?item.id.replace(":","__"):item.id;
+   const group=item.kind==="art"||item.kind==="artTransform"?"art":item.kind==="vfx"?"vfx":"backgrounds";
+   const fileGroup=item.kind==="artTransform"?"art-transform":group;
+   const filePath="assets/shared/"+fileGroup+"/"+item.id.replace(":","__")+"."+ext;
+   const key=item.kind==="vfx"?item.id.replace(":","__"):item.kind==="artTransform"?item.id+"__transform":item.id;
    manifest[group][key]={path:filePath,name:item.name};
    files.push({name:filePath,bytes:new Uint8Array(await item.blob.arrayBuffer())});
   }
@@ -4425,7 +4421,9 @@ async function exportLocalPFAssetsZip(){
  let selectedFiles=[];
  const options=[];
  options.push({value:"",label:"저장 위치 선택..."});
- options.push({group:"캐릭터 일러스트",items:IDS.map(id=>({value:"art|"+id,label:DATA[id].name}))});
+ options.push({group:"캐릭터 일반 일러스트",items:IDS.map(id=>({value:"art|"+id,label:DATA[id].name+" · 일반"}))});
+ const transformIds=IDS.filter(id=>DATA[id]&&DATA[id].transform);
+ if(transformIds.length)options.push({group:"캐릭터 변신 일러스트",items:transformIds.map(id=>({value:"artTransform|"+id,label:DATA[id].name+" · 변신"}))});
  options.push({group:"기술 이펙트",items:VFX_IDS.map(id=>{
   const [fighter,moveId]=id.split(":");
   const move=DATA[fighter].moves.find(m=>m.id===moveId);
@@ -4477,6 +4475,9 @@ async function exportLocalPFAssetsZip(){
     if(!file.type.startsWith("image/"))continue;
     if(kind==="art"){
      await dbWrite(id,file);setURL(art,id,file);
+    }else if(kind==="artTransform"){
+     if(!DATA[id]||!DATA[id].transform)throw new Error("변신 이미지 대상 캐릭터가 아니야: "+id);
+     await dbWrite("art-transform:"+id,file);setURL(transformArt,id,file);
     }else if(kind==="vfx"){
      await dbWrite(vfxKey(id),file);setURL(vfx,id,file);
     }else if(kind==="background"){
@@ -4508,10 +4509,19 @@ window.applyCloudPFAssets=async(data)=>{
   }catch(e){}
  };
  const artData=data.art||{};
- for(const [id,meta] of Object.entries(artData)){
-  if(!meta||!meta.url||!DATA[id])continue;
-  art[id]=meta.url;
-  cacheBlob(meta.url,id);
+ for(const [assetKey,meta] of Object.entries(artData)){
+  if(!meta||!meta.url)continue;
+  if(assetKey.endsWith("__transform")){
+   const id=assetKey.slice(0,-11);
+   if(!DATA[id]||!DATA[id].transform)continue;
+   transformArt[id]=meta.url;
+   cacheBlob(meta.url,"art-transform:"+id);
+  }else{
+   const id=assetKey;
+   if(!DATA[id])continue;
+   art[id]=meta.url;
+   cacheBlob(meta.url,id);
+  }
  }
  const vfxData=data.vfx||{};
  for(const [key,meta] of Object.entries(vfxData)){
@@ -4536,10 +4546,11 @@ window.applyCloudPFAssets=async(data)=>{
   cacheBlob(meta.url,"bg:user:"+id);
  }
  renderCards();
+ if(battle)renderBattle();
  renderVFXLibrary();
  renderBackgroundSettings();
  applyArenaBackground();
- $("status").textContent="클라우드 캐릭터 이미지 동기화 완료.";
+ $("status").textContent="클라우드 캐릭터 일반·변신 이미지 동기화 완료.";
  $("vfxStatus").textContent="클라우드 기술 이펙트 동기화 완료.";
  $("backgroundStatus").textContent="클라우드 배경 이미지 "+Object.keys(bgData).length+"개 동기화 완료.";
 };
@@ -5449,7 +5460,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.15";
+const PF_BUILD_VERSION="v0.29.16";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
