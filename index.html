@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.14</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.15</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -244,7 +244,15 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  box-shadow:0 3px 10px #0009;
 }
 .playerArt .v24SwitchIcon:active{transform:scale(.92)}
-.playerArt .v24SwitchIcon:disabled{opacity:.38;filter:grayscale(.7)}
+ .playerArt .v24SwitchIcon:disabled{opacity:.38;filter:grayscale(.7)}
+.playerArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
+.playerArt.spiritDive img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
+.enemyArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
+.enemyArt.spiritDive img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
+.playerArt.spiritDive:after{content:"SPIRIT DIVE · 정령동화";position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:7;white-space:nowrap;padding:5px 9px;border:1px solid #8beaff;border-radius:20px;background:#12334acc;color:#c9f8ff;font-size:9px;font-weight:1000;box-shadow:0 0 16px #4edbff99;pointer-events:none}
+.playerArt .v29TransformBtn{position:absolute;right:4px;bottom:53px;z-index:9;min-width:82px;min-height:29px;padding:5px 8px;border:1px solid #73d9e8;border-radius:8px;background:linear-gradient(145deg,#17394aee,#0b1725ee);color:#bff8ff;font-size:9px;font-weight:1000;box-shadow:0 3px 10px #0009}
+.playerArt .v29TransformBtn.pending,.playerArt .v29TransformBtn.transformed{background:linear-gradient(145deg,#72e8f4,#267b9b);color:#061522;border-color:#d4fbff;box-shadow:0 0 14px #72e8f4aa}
+.playerArt .v29TransformBtn:disabled{opacity:.5;filter:grayscale(.4)}
 
 /* ===== v0.26.0 ONLINE LOBBY ===== */
 #onlineEntry{margin-top:10px}
@@ -261,7 +269,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.26.0 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.15 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -390,7 +398,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.14 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.15 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -484,7 +492,7 @@ fate:{
  },
  blackClover:{
   name:"BLACK CLOVER",subtitle:"블랙 클로버",icon:"☘",color:"#8acb83",
-  characters:["asta","magnaSwing"]
+  characters:["asta","magnaSwing","yuno"]
  }
 };
 
@@ -630,6 +638,21 @@ const DATA={
   ]
  },
 
+ yuno:{
+  name:"유노",title:"마나에게 사랑받는 자",color:"#79d9dc",
+  trait:"스피릿 다이브 — 변신 시 스피드 2배, 특공 1.5배.",
+  transform:{name:"스피릿 다이브",formName:"정령동화"},
+  stats:{hp:170,atk:60,def:70,tec:140,res:100,spd:120},
+  resource:"정령동화",max:0,
+  resourceDesc:"스피릿 다이브 버튼을 누르면 다음 행동 처리 시작 전에 변신한다. 변신 후 스피드 2배, 특공 1.5배.",
+  moves:[
+   M("yunoSpiritStorm","스피릿 스톰",90,8,95,0,"special","특수 공격."),
+   M("yunoSpiritZephyr","스피릿 오브 제파",80,8,95,0,"special","상대의 특방이 아닌 방어를 기준으로 피해를 계산한다.",1,{effect:"yunoZephyr"}),
+   M("yunoManaZone","마나존-정령의 고요한 무도",0,6,100,1,"status","자신의 파티 전체가 5턴 동안 명중률과 관계없이 40% 확률로 공격을 회피한다.",1,{effect:"yunoManaZone"}),
+   M("yunoParadise","공상의 별낙원",0,3,100,0,"status","5턴 동안 성역 필드를 전개한다. 아군이 주는 피해 1.25배, 상대가 주는 피해 0.75배.",1,{effect:"field:sanctuary",ultimate:true})
+  ]
+ },
+
  /* ====================== MONSTER HUNTER ====================== */
  malzeno:{
   name:"원초를 새기는 멜 제나",title:"은작룡",color:"#d9b5df",
@@ -698,6 +721,7 @@ const CLASS_ELIGIBILITY={
  gilgamesh:["세이버","아처","랜서","어새신","라이더","캐스터","버서커","룰러","얼터에고"],
  asta:["세이버","어벤져"],
  magnaSwing:["어벤져","캐스터"],
+ yuno:["랜서","캐스터","포리너"],
  enkidu:["랜서","버서커"],merlin:["캐스터"],
  richard:["세이버","라이더","버서커","룰러"],
  morgan:["캐스터","버서커","룰러"],altria:["세이버"],
@@ -763,6 +787,11 @@ const FIELD_DATA={
      log(f.name+"의 HP가 "+healed+" 회복되었다.");
    }
   }
+ },
+ sanctuary:{
+  id:"sanctuary",
+  name:"성역",
+  duration:5
  }
 };
 
@@ -954,7 +983,7 @@ function applyDebuff(target,type,value,source){
    FIELD SYSTEM
 ========================================================= */
 
-function setField(fieldId){
+function setField(fieldId,ownerSide=null){
  const def=FIELD_DATA[fieldId];
  if(!def)return false;
 
@@ -965,7 +994,8 @@ function setField(fieldId){
   id:def.id,
   name:def.name,
   duration:def.duration,
-  accuracyMultiplier:def.accuracyMultiplier||1
+  accuracyMultiplier:def.accuracyMultiplier||1,
+  ownerSide:ownerSide||null
  };
 
  log("필드가 "+def.name+"으로 변경되었다!");
@@ -1040,6 +1070,8 @@ function makeFighter(id){
   madnessRanksApplied:false,
   madnessRankKeys:[],
   ultimateCount:0,
+  transformed:false,
+  transformPending:false,
 
   timeClaim:0,
   switchedIn:false,
@@ -2007,6 +2039,37 @@ function log(s){
 }
 
 /* =========================================================
+   COMMON TRANSFORMATION SYSTEM
+   변신은 행동 선택 이후, 양측 기술 실행/속도 판정 전에 처리한다.
+========================================================= */
+function applyTransformation(f){
+ if(!f||!f.transformPending||f.transformed)return false;
+ const config=DATA[f.id]?.transform;
+ if(!config)return false;
+ f.transformPending=false;
+ f.transformed=true;
+ if(f.id==="yuno"){
+  f.stats.spd=Math.round(f.stats.spd*2);
+  f.stats.tec=Math.round(f.stats.tec*1.5);
+ }
+ log(f.name+"의 "+config.name+" 발동! "+config.formName+" 상태가 되었다.");
+ announce(config.name+" — "+config.formName+"!");
+ return true;
+}
+
+function revertTransformation(f){
+ if(!f||!f.transformed)return;
+ const config=DATA[f.id]?.transform;
+ if(f.id==="yuno"){
+  f.stats.spd=f.baseStats.spd;
+  f.stats.tec=f.baseStats.tec;
+ }
+ f.transformed=false;
+ f.transformPending=true;
+ if(config)log(f.name+"의 변신 전송이 취소되어 대기 상태로 돌아갔다.");
+}
+
+/* =========================================================
    BATTLE UI / RESOURCE
 ========================================================= */
 
@@ -2177,10 +2240,14 @@ function renderBattle(){
  for(const [side,f] of [["player",p],["enemy",e]]){
   const box=$(side+"Art");
 
-  if(box.dataset.id!==f.id){
+   if(box.dataset.id!==f.id){
    box.innerHTML=portrait(f.id);
    box.dataset.id=f.id;
+   box.dataset.transformed=String(!!f.transformed);
+  }else if(box.dataset.transformed!==String(!!f.transformed)){
+   box.dataset.transformed=String(!!f.transformed);
   }
+  box.classList.toggle("spiritDive",!!f.transformed);
  }
 
  renderMoves();
@@ -2562,7 +2629,7 @@ function damageByType(a,d,m,type){
 
  const physical=type==="physical";
  const attack=physical?statValue(a,"atk"):statValue(a,"tec");
- const defenseKey=physical?"def":"res";
+ const defenseKey=(m.effect==="yunoZephyr")?"def":(physical?"def":"res");
  // 아스타의 반 마법: 상대의 기본 방어/특방은 남기고 랭크 상승만 무시한다.
  const defense=Math.max(1,a.id==="asta"?(d.stats[defenseKey]||0):statValue(d,defenseKey));
 
@@ -2583,6 +2650,12 @@ function damageByType(a,d,m,type){
 
  if(a.className&&d.className)
   result=Math.max(1,Math.floor(result*classMultiplier(a.className,d.className)));
+
+ if(battle&&battle.field&&battle.field.id==="sanctuary"){
+  const attackerSide=battle.player.team.includes(a)?"player":"cpu";
+  const multiplier=attackerSide===battle.field.ownerSide?1.25:.75;
+  result=Math.max(1,Math.floor(result*multiplier));
+ }
 
  // 마그나 스윙의 근성: 현재 HP가 정확히 1이면 최종 가하는 피해가 2배.
  if(a.id==="magnaSwing"&&a.hp===1)
@@ -3078,10 +3151,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.14 · HOST · "+message;
+   node.textContent="BUILD v0.29.15 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.14]",message);
+  console.log("[PF v0.29.15]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3390,8 +3463,24 @@ function activateStatus(side,actor,target,move){
   return;
  }
 
+ if(move.effect==="yunoManaZone"){
+  if(battle&&battle[side]&&Array.isArray(battle[side].team)){
+   battle[side].team.forEach(f=>{f.manaZoneEvasionTurns=5;});
+  }
+  log("마나존-정령의 고요한 무도! 아군 전체가 5턴 동안 40% 확률로 공격을 회피한다.");
+  announce("마나존 — 정령의 고요한 무도!");
+  return;
+ }
+
+ if(move.effect==="field:sanctuary"){
+  setField("sanctuary",side);
+  log("성역 필드: 아군 피해량 1.25배, 상대 피해량 0.75배. 5턴 지속.");
+  announce("공상의 별낙원 — 성역 전개!");
+  return;
+ }
+
  if(move.effect==="field:garden"){
-  setField("garden");
+  setField("garden",side);
   return;
  }
 
@@ -3659,6 +3748,14 @@ async function execute(side,index,moveOverride,order){
   let damage=0;
 
   await playOnlineFX(side,a,currentMove,true,()=>{
+   const defenderSide=other;
+   if((Number(battle[defenderSide]?.team?.[battle[defenderSide].activeIndex]?.manaZoneEvasionTurns)||0)>0&&Math.random()<.40){
+    damage=0;actual=0;
+    log(d.name+"이(가) 마나존의 정령무도로 공격을 회피했다!");
+    announce(d.name+" 마나존 회피!");
+    renderBattle();
+    return {damage:0,targetSide:other,color:DATA[sourceId]?.color||DATA[a.id].color};
+   }
    damage=damageOf(a,d,currentMove,chosenType);
    actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits||a.id==="asta"});
 
@@ -3789,6 +3886,15 @@ function endTurnEffects(){
   }
  }
 
+ /* 마나존 회피는 교체된 아군에게도 유지되며 턴 종료마다 감소한다. */
+ for(const side of ["player","cpu"]){
+  if(battle[side]&&Array.isArray(battle[side].team)){
+   battle[side].team.forEach(f=>{
+    if((Number(f.manaZoneEvasionTurns)||0)>0)f.manaZoneEvasionTurns--;
+   });
+  }
+ }
+
  /* 필드 효과는 양측 행동이 모두 끝난 뒤 적용한다. */
  if(battle.field){
   const field=FIELD_DATA[battle.field.id];
@@ -3915,7 +4021,12 @@ async function playTurn(index,moveOverride){
   busy=true;battle.phase="resolve";selectedMove=null;renderBattle();
   try{
    const allocation=p.id==="enkidu"?{atk:p.stats.atk,spd:p.stats.spd,allocatedAtk:p.allocatedAtk,allocatedSpd:p.allocatedSpd}:null;
-   await window.onlineSubmitAction({turn:battle.turn,index,move:moveOverride||null,allocation});
+   const transform=!!p.transformPending;
+   if(transform)applyTransformation(p);
+   try{
+    await window.onlineSubmitAction({turn:battle.turn,index,move:moveOverride||null,allocation,transform});
+   }catch(sendErr){if(transform)revertTransformation(p);throw sendErr;}
+   renderBattle();
    announce("행동 전송 완료 · 방장의 턴 처리를 기다리는 중...");
   }catch(err){busy=false;battle.phase="select";renderBattle();alert("행동 전송 실패: "+(err.message||err));}
   return;
@@ -3935,6 +4046,7 @@ async function playTurn(index,moveOverride){
    e.allocatedAtk=Number(remoteAction.allocation.allocatedAtk)||e.stats.atk;
    e.allocatedSpd=Number(remoteAction.allocation.allocatedSpd)||e.stats.spd;
   }
+  if(remoteAction.transform&&e.transformPending!==false){e.transformPending=true;applyTransformation(e);}
   cpuChoice={index:Number.isInteger(remoteAction.index)?remoteAction.index:-1,move:remoteAction.move||null};
  }else{
   cpuChoice=v25PrepareCpuRichardAction(chooseCPUAction(e,p),e);
@@ -3944,6 +4056,10 @@ async function playTurn(index,moveOverride){
  const enemyMove=cpuChoice.move||(
   enemyIndex===-1?STRUGGLE:movesOf(e)[enemyIndex]
  );
+
+ // 두 플레이어의 변신은 우선도/스피드 비교 전에 동시에 확정한다.
+ if(p.transformPending)applyTransformation(p);
+ if(e.transformPending)applyTransformation(e);
 
  if(battle.mode==="team")battle.turnInterruptedByFaint=false;
 
@@ -4047,7 +4163,7 @@ async function startBattle(){
   logs:[],
   history:[],
   copiedKeys:new Set(),
-  field:null,totalUltimateUses:0
+  field:null,totalUltimateUses:0,partyEvasionTurns:{player:0,cpu:0}
  };
 
  /* 멀린은 환술로 HP 60 상태에서 시작 */
@@ -4876,7 +4992,7 @@ function v24BeginOnlineBattle(){
   mode:"team",
   player:{team:makeTeam(v24Lineup,v24DraftClasses),roster:v24DraftSix.slice(),activeIndex:0},
   cpu:{team:makeTeam(window.onlineOpponentLineup,v24CpuClasses),roster:v24CpuSix.slice(),activeIndex:0},
-  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0
+  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0,partyEvasionTurns:{player:0,cpu:0}
  };
  ["player","cpu"].forEach(side=>battle[side].team.forEach(f=>{if(f.id==="merlin")f.hp=60;}));
  busy=true;selectedMove=null;clearFX();closeSystemModal();
@@ -4910,6 +5026,7 @@ window.onlineApplyBattleState=(serialized)=>{
   if(!incoming||!incoming.player||!incoming.cpu)return;
   const restored=JSON.parse(JSON.stringify(incoming), (key,value)=>value&&Array.isArray(value.__pfSet)?new Set(value.__pfSet):value);
   const own=restored.player;restored.player=restored.cpu;restored.cpu=own;
+  if(restored.field&&restored.field.ownerSide)restored.field.ownerSide=restored.field.ownerSide==="player"?"cpu":"player";
   battle=restored;busy=false;selectedMove=null;closeSystemModal();clearFX();
   if(battle.phase==="ended"){endBattle();return;}
   screen("battleScreen");applyArenaBackground();resizeCanvas();renderBattle();
@@ -4923,6 +5040,7 @@ window.onlineApplyBattleImpactState=(serialized)=>{
   if(!incoming||!incoming.player||!incoming.cpu)return;
   const restored=JSON.parse(JSON.stringify(incoming),(key,value)=>value&&Array.isArray(value.__pfSet)?new Set(value.__pfSet):value);
   const own=restored.player;restored.player=restored.cpu;restored.cpu=own;
+  if(restored.field&&restored.field.ownerSide)restored.field.ownerSide=restored.field.ownerSide==="player"?"cpu":"player";
   battle=restored;
   renderBattle();
  }catch(err){console.error("온라인 적중 상태 적용 실패",err);}
@@ -4937,7 +5055,7 @@ function v24BeginBattle(){
   mode:"team",
   player:{team:makeTeam(v24Lineup,v24DraftClasses),roster:v24DraftSix.slice(),activeIndex:0},
   cpu:{team:makeTeam(cpuLineup,v24CpuClasses),roster:v24CpuSix.slice(),activeIndex:0},
-  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0
+  turn:1,phase:"intro",logs:[],history:[],copiedKeys:new Set(),field:null,totalUltimateUses:0,partyEvasionTurns:{player:0,cpu:0}
  };
  ["player","cpu"].forEach(side=>{
   battle[side].team.forEach(f=>{if(f.id==="merlin")f.hp=60;});
@@ -4985,6 +5103,28 @@ function v24RenderSwitchIcon(){
  const hasReserve=battle.player.team.some((x,i)=>i!==battle.player.activeIndex&&x.hp>0);
  button.disabled=busy||battle.phase!=="select"||!hasReserve||f.switchLock>0;
  button.title=f.switchLock>0?"교체 봉쇄 중":hasReserve?"캐릭터 교체 · 행동 소비":"교체할 캐릭터 없음";
+
+ let transformButton=artBox.querySelector(".v29TransformBtn");
+ const transformConfig=DATA[f.id]?.transform;
+ if(transformConfig){
+  if(!transformButton){
+   transformButton=document.createElement("button");
+   transformButton.type="button";
+   transformButton.className="v29TransformBtn";
+   transformButton.onclick=()=>{
+    if(busy||battle.phase!=="select"||f.transformed)return;
+    f.transformPending=!f.transformPending;
+    renderBattle();
+    announce(f.transformPending?transformConfig.name+" 변신 예약! 이번 턴 기술 실행 전에 발동한다.":"변신 예약을 취소했다.");
+   };
+   artBox.appendChild(transformButton);
+  }
+  transformButton.textContent=f.transformed?"정령동화 완료":f.transformPending?"변신 예약됨":"스피릿 다이브";
+  transformButton.classList.toggle("pending",!!f.transformPending);
+  transformButton.classList.toggle("transformed",!!f.transformed);
+  transformButton.disabled=busy||battle.phase!=="select"||!!f.transformed;
+  transformButton.setAttribute("aria-pressed",String(!!(f.transformPending||f.transformed)));
+ }else if(transformButton){transformButton.remove();}
 }
 renderBattle=function(){
  __v24RenderBattle();
@@ -5309,7 +5449,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.14";
+const PF_BUILD_VERSION="v0.29.15";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
