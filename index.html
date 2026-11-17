@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.12</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.13</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -390,7 +390,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.12 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.13 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -484,7 +484,7 @@ fate:{
  },
  blackClover:{
   name:"BLACK CLOVER",subtitle:"블랙 클로버",icon:"☘",color:"#8acb83",
-  characters:["asta"]
+  characters:["asta","magnaSwing"]
  }
 };
 
@@ -616,6 +616,20 @@ const DATA={
   ]
  },
 
+ magnaSwing:{
+  name:"마그나 스윙",title:"근성",color:"#d66d45",
+  trait:"근성 — HP가 최대인 턴에 HP가 0이 되는 피해를 받으면 HP 1로 버틴다.",
+  stats:{hp:180,atk:50,def:70,tec:50,res:60,spd:90},
+  resource:"근성",max:0,
+  resourceDesc:"턴 시작 시 HP가 최대라면 그 턴에 치명적인 피해를 한 번 HP 1로 버틴다. 기술 근성은 사용한 턴에 치명적인 피해를 HP 1로 버틴다.",
+  moves:[
+   M("magnaBurnKnuckle","번 너클",75,10,100,0,"physical","물리 공격."),
+   M("magnaExplosiveFireball","극대 폭살 굉염 마구",100,8,85,0,"special","특수 공격."),
+   M("magnaGuts","근성",0,4,100,3,"status","이번 턴 어떤 피해로도 HP가 0이 되면 HP 1로 버틴다. 사용한 다음 턴에는 사용할 수 없다.",1,{effect:"magnaGuts",cooldownTurns:2}),
+   M("magnaSoulChain","소울 체인 데스 매치",0,1,100,1,"status","상대와 자신의 HP·공격·방어·특공·특방·스피드 현재 수치를 각각 합산해 절반씩 나눈다. 이후 자신의 스피드 랭크가 1 상승한다.",1,{effect:"magnaSoulChain",ultimate:true})
+  ]
+ },
+
  /* ====================== MONSTER HUNTER ====================== */
  malzeno:{
   name:"원초를 새기는 멜 제나",title:"은작룡",color:"#d9b5df",
@@ -683,6 +697,7 @@ const CLASS_EN={"세이버":"Saber","아처":"Archer","랜서":"Lancer","라이�
 const CLASS_ELIGIBILITY={
  gilgamesh:["세이버","아처","랜서","어새신","라이더","캐스터","버서커","룰러","얼터에고"],
  asta:["세이버","어벤져"],
+ magnaSwing:["어벤져","캐스터"],
  enkidu:["랜서","버서커"],merlin:["캐스터"],
  richard:["세이버","라이더","버서커","룰러"],
  morgan:["캐스터","버서커","룰러"],altria:["세이버"],
@@ -1007,6 +1022,8 @@ function makeFighter(id){
 
   illusionAvailable:id==="merlin",
   gutsAvailable:id==="morgan",
+  magnaTraitReady:false,
+  magnaGutsMoveActive:false,
   malzenoGutsGranted:false,
   malzenoGutsReady:false,
   bloodActive:false,
@@ -2630,6 +2647,16 @@ function applyDamage(target,amount,source,flags=null){
   log("모르간의 특성 땅끝에서 발동! 근성으로 HP 1에서 버텼다!");
   return actual;
  }
+ if(!(flags&&flags.ignoreTraits)&&target.id==="magnaSwing"&&incoming>=target.hp&&
+    (target.magnaTraitReady||target.magnaGutsMoveActive)){
+  const actual=Math.max(0,target.hp-1);
+  target.hp=1;
+  if(target.magnaTraitReady)target.magnaTraitReady=false;
+  if(target.magnaGutsMoveActive)target.magnaGutsMoveActive=false;
+  log("마그나 스윙의 근성 발동! HP 1로 버텼다!");
+  announce("근성 발동 — HP 1로 버텼다!");
+  return actual;
+ }
 
  const actual=Math.min(target.hp,incoming);
  target.hp-=actual;
@@ -3047,10 +3074,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.12 · HOST · "+message;
+   node.textContent="BUILD v0.29.13 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.12]",message);
+  console.log("[PF v0.29.13]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3366,6 +3393,55 @@ function activateStatus(side,actor,target,move){
 
  if(move.effect==="shield"){
   onGuard(actor,target,move);
+  return;
+ }
+
+ if(move.effect==="magnaGuts"){
+  actor.magnaGutsMoveActive=true;
+  log("마그나 스윙이 근성을 발휘한다! 이번 턴 치명적인 피해를 HP 1로 버틴다.");
+  announce("마그나의 근성!");
+  return;
+ }
+
+ if(move.effect==="magnaSoulChain"){
+  const accuracy=getAccuracy(move);
+  if(Math.random()*100>=accuracy){
+   log("마그나 스윙의 소울 체인 데스 매치가 빗나갔다!");
+   announce("소울 체인 데스 매치 빗나감!");
+   return;
+  }
+  const keys=["hp","atk","def","tec","res","spd"];
+  const before={};
+  for(const key of keys){
+   if(key==="hp"){
+    const sharedMax=Math.floor((actor.maxHp+target.maxHp)/2);
+    const sharedCurrent=Math.floor((actor.hp+target.hp)/2);
+    before.hp={a:actor.hp,b:target.hp};
+    actor.maxHp=target.maxHp=sharedMax;
+    actor.stats.hp=target.stats.hp=sharedMax;
+    actor.baseStats.hp=target.baseStats.hp=sharedMax;
+    actor.hp=target.hp=Math.min(sharedMax,sharedCurrent);
+   }else{
+    const av=statValue(actor,key),tv=statValue(target,key);
+    const shared=Math.max(0,Math.floor((av+tv)/2));
+    before[key]={a:av,b:tv};
+    actor.stats[key]=target.stats[key]=shared;
+    actor.baseStats[key]=target.baseStats[key]=shared;
+    actor.ranks[key]=target.ranks[key]=0;
+    if(actor.id==="enkidu"){
+     if(key==="atk")actor.allocatedAtk=shared;
+     if(key==="spd")actor.allocatedSpd=shared;
+    }
+    if(target.id==="enkidu"){
+     if(key==="atk")target.allocatedAtk=shared;
+     if(key==="spd")target.allocatedSpd=shared;
+    }
+   }
+  }
+  changeRank(actor,"spd",1,actor);
+  log("소울 체인 데스 매치! 양측의 HP·공격·방어·특공·특방·스피드가 각각 현재 합계의 절반으로 동일해졌다.");
+  log("마그나 스윙의 스피드 랭크가 1 상승했다.");
+  announce("소울 체인 데스 매치 — 능력치 균등화!");
   return;
  }
 
@@ -3743,6 +3819,16 @@ function beginTurn(){
 
  const p=active("player");
  const e=active("cpu");
+
+ /* 마그나 특성은 해당 턴 시작 시 HP가 최대였는지 판정한다.
+    근성 기술의 보호 효과는 새 턴이 시작되면 종료된다. */
+ for(const f of [p,e]){
+  if(!f)continue;
+  if(f.id==="magnaSwing"){
+   f.magnaTraitReady=f.hp===f.maxHp;
+   f.magnaGutsMoveActive=false;
+  }
+ }
 
  /* 컴퓨터 엘키두는 매 턴 자동 배분 */
  if(e.id==="enkidu")
@@ -5219,7 +5305,7 @@ window.onlinePublishBattleMessage=async(message)=>{
  pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 
-const PF_BUILD_VERSION="v0.29.12";
+const PF_BUILD_VERSION="v0.29.13";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
