@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.17</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.18</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -105,6 +105,12 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .playerInfo{flex:none}.classBadge{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .playerArt{flex:1;min-height:0;width:100%;position:relative;filter:drop-shadow(0 12px 15px #0008)}
 .name{font-size:clamp(13px,3.6vw,19px);font-weight:1000}
+.nameLine{display:flex;align-items:center;flex-wrap:wrap;gap:5px 7px;min-width:0}
+.turnBadges{display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px;min-width:0}
+.turnBadge{display:inline-flex;align-items:center;padding:2px 5px;border:1px solid #6c91b8;border-radius:5px;background:#142b43;color:#d8efff;font-size:9px;font-weight:900;line-height:1.35;white-space:nowrap;font-variant-numeric:tabular-nums}
+.turnBadge.field{border-color:#c3a3ff;background:#30254a;color:#f0e4ff}
+.turnBadge.team{border-color:#79d8bc;background:#123b36;color:#caffed}
+.turnBadge.personal{border-color:#e0bd73;background:#40331a;color:#ffedc2}
 .hpText{display:flex;justify-content:space-between;font-size:10px;margin-top:7px;font-variant-numeric:tabular-nums}
 .hpValue.damaged{color:#ff8799;animation:hpPulse .4s ease-out}
 @keyframes hpPulse{50%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -269,7 +275,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.17 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.18 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -398,7 +404,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.17 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.18 · 연결 상태 확인 중</span>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -2195,12 +2201,39 @@ function resourceHTML(f){
  `;
 }
 
+/* 공통 지속 효과 표시기: 필드와 캐릭터별 턴제 효과를 이름 옆에 표시한다.
+   신규 지속 효과는 f.timedEffects=[{name:"효과명",turns:3,type:"personal"}] 형태로 추가 가능. */
+function turnBadgesHTML(f){
+ const badges=[];
+ const manaTurns=Math.max(0,Number(f.manaZoneEvasionTurns)||0);
+ if(manaTurns>0)badges.push({name:"마나존",turns:manaTurns,type:"team"});
+ if(battle&&battle.field&&Number(battle.field.duration)>0){
+  badges.push({name:battle.field.name,turns:Number(battle.field.duration),type:"field"});
+ }
+ if(Number(f.hasteTurns)>0)badges.push({name:"신속",turns:Number(f.hasteTurns),type:"personal"});
+ if(Number(f.speedTurns)>0)badges.push({name:"속도 저하",turns:Number(f.speedTurns),type:"personal"});
+ if(Number(f.switchLock)>0)badges.push({name:"교체 봉쇄",turns:Number(f.switchLock),type:"personal"});
+ if(Number(f.madnessTurns)>0)badges.push({name:"광기",turns:Number(f.madnessTurns),type:"personal"});
+ if(Array.isArray(f.timedEffects)){
+  f.timedEffects.forEach(effect=>{
+   const turns=Math.max(0,Number(effect&&effect.turns)||0);
+   if(effect&&effect.name&&turns>0)
+    badges.push({name:String(effect.name),turns,type:effect.type||"personal"});
+  });
+ }
+ if(!badges.length)return '<span class="turnBadges" aria-label="활성 지속 효과 없음"></span>';
+ return '<span class="turnBadges">'+badges.map(b=>
+  `<span class="turnBadge ${b.type==='field'?'field':b.type==='team'?'team':'personal'}" title="${b.name} 지속 ${b.turns}턴">${b.name} ${b.turns}턴</span>`
+ ).join('')+'</span>';
+}
+
 function infoHTML(f){
  const pct=f.hp/f.maxHp*100;
 
  return `
-  <div class="name" style="color:${DATA[f.id].color}">
-   ${f.name}
+  <div class="nameLine">
+   <div class="name" style="color:${DATA[f.id].color}">${f.name}</div>
+   ${turnBadgesHTML(f)}
   </div>
   <button type="button" class="classBadge" data-class-badge="1"
    aria-label="현재 클래스 ${f.className||"미지정"} 길게 눌러 상성표 보기"
@@ -2246,6 +2279,13 @@ function updateInfo(id,f){
  }
 
  box.dataset.hp=f.hp;
+
+ const badgeBox=box.querySelector(".turnBadges");
+ if(badgeBox){
+  const tempBadges=document.createElement("div");
+  tempBadges.innerHTML=turnBadgesHTML(f);
+  badgeBox.replaceWith(tempBadges.firstElementChild);
+ }
 
  const fill=box.querySelector(".hpFill");
  fill.style.width=pct+"%";
@@ -3194,10 +3234,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.17 · HOST · "+message;
+   node.textContent="BUILD v0.29.18 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.17]",message);
+  console.log("[PF v0.29.18]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5520,7 +5560,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.17";
+const PF_BUILD_VERSION="v0.29.18";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
