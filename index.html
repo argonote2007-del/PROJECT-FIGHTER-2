@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.21</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.23</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -255,7 +255,9 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .playerArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
 .enemyArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
 .enemyArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
-.playerArt.spiritDive:after{content:"SPIRIT DIVE · 정령동화";position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:7;white-space:nowrap;padding:5px 9px;border:1px solid #8beaff;border-radius:20px;background:#12334acc;color:#c9f8ff;font-size:9px;font-weight:1000;box-shadow:0 0 16px #4edbff99;pointer-events:none}
+.playerArt.spiritDive:after,.enemyArt.spiritDive:after{content:attr(data-transform-label);position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:7;white-space:nowrap;padding:5px 9px;border:1px solid #8beaff;border-radius:20px;background:#12334acc;color:#c9f8ff;font-size:9px;font-weight:1000;box-shadow:0 0 16px #4edbff99;pointer-events:none}
+.playerArt.nahatUnite,.enemyArt.nahatUnite{filter:drop-shadow(0 0 14px #a78bfa) drop-shadow(0 0 24px #7656d8)}
+.playerArt.nahatUnite:after,.enemyArt.nahatUnite:after{border-color:#c4b5fd;background:#28194ddd;color:#eee7ff;box-shadow:0 0 16px #9b7cf799}
 .playerArt .v29TransformBtn{position:absolute;right:4px;bottom:53px;z-index:9;min-width:82px;min-height:29px;padding:5px 8px;border:1px solid #73d9e8;border-radius:8px;background:linear-gradient(145deg,#17394aee,#0b1725ee);color:#bff8ff;font-size:9px;font-weight:1000;box-shadow:0 3px 10px #0009}
 .playerArt .v29TransformBtn.pending,.playerArt .v29TransformBtn.transformed{background:linear-gradient(145deg,#72e8f4,#267b9b);color:#061522;border-color:#d4fbff;box-shadow:0 0 14px #72e8f4aa}
 .playerArt .v29TransformBtn:disabled{opacity:.5;filter:grayscale(.4)}
@@ -275,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.21 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.23 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -404,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.21 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.23 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -663,7 +665,7 @@ const DATA={
  nahat:{
   name:"나하트",title:"악마 동화",color:"#7771bd",
   trait:"유나이트 — 카니스·에쿠스·페리스·가루스의 네 변신 폼을 전투 중 자유롭게 전환한다.",
-  transform:{name:"유나이트",formName:"악마 동화",forms:["카니스","에쿠스","페리스","가루스"]},
+  transform:{name:"유나이트",formName:"악마동화 · 유나이트",forms:["카니스","에쿠스","페리스","가루스"]},
   stats:{hp:170,atk:60,def:80,tec:130,res:90,spd:110},
   resource:"유나이트",max:0,
   resourceDesc:"네 변신 폼을 전투 중 자유롭게 전환한다. 카니스는 공격 후 별도 추가 타격, 에쿠스는 방어형 능력치, 페리스는 특공·스피드 및 회피, 가루스는 상대 교체 봉쇄 효과를 가진다.",
@@ -1351,7 +1353,8 @@ async function dbDelete(key){
 function setURL(store,key,blob){
  if(store[key])URL.revokeObjectURL(store[key]);
  store[key]=blob?URL.createObjectURL(blob):null;
- const slot=(store===transformArt?"transform:":"normal:")+key;
+ // 변신 일러스트 저장소(일반 변신 및 나하트 4폼)를 모두 변신 슬롯으로 버전 관리한다.
+ const slot=(store===transformArt||store===transformFormArt?"transform:":"normal:")+key;
  artVersion[slot]=(artVersion[slot]||0)+1;
 }
 
@@ -2103,8 +2106,8 @@ function applyTransformation(f,options={}){
   const foe=active(battle.player.team.includes(f)?"cpu":"player");
   if(foe&&previous==="가루스")foe.nahatSwitchLocked=false;
   if(foe)foe.nahatSwitchLocked=form==="가루스";
-  log(f.name+"의 유나이트! "+(form||"기본 상태")+" 폼으로 전환했다.");
-  if(!options.silent)announce(f.name+" — "+(form||"기본 상태")+" 폼!");
+  log(f.name+"의 악마동화 · 유나이트! "+(form||"기본 상태")+" 폼으로 전환했다.");
+  if(!options.silent)announce(f.name+" — 악마동화 · 유나이트 · "+(form||"기본 상태")+"!");
   return true;
  }
  if(f.transformed)return false;
@@ -2137,13 +2140,13 @@ async function resolveTransformationsBeforeActions(playerF,enemyF){
   await window.onlinePublishTransformationEvent({
    hostId:playerF.id,guestId:enemyF.id,
    hostTransform:playerPending,guestTransform:enemyPending,hostForm:playerF.pendingTransformForm||null,guestForm:enemyF.pendingTransformForm||null,
-   startAt,text:[playerPending?DATA[playerF.id]?.transform?.name:null,enemyPending?DATA[enemyF.id]?.transform?.name:null].filter(Boolean).join(" · ")+" 변신!"
+   startAt,text:[[playerPending,playerF],[enemyPending,enemyF]].filter(([pending])=>pending).map(([,fighter])=>fighter.id==="nahat"?"악마동화 · 유나이트":DATA[fighter.id]?.transform?.name).filter(Boolean).join(" · ")+" 변신!"
   });
   await waitForOnlineAnimationStart(startAt);
   if(playerPending)applyTransformation(playerF,{silent:true});
   if(enemyPending)applyTransformation(enemyF,{silent:true});
   renderBattle();
-  const text=[playerPending?DATA[playerF.id]?.transform?.name:null,enemyPending?DATA[enemyF.id]?.transform?.name:null].filter(Boolean).join(" · ")+" 변신 완료!";
+  const text=[[playerPending,playerF],[enemyPending,enemyF]].filter(([pending])=>pending).map(([,fighter])=>fighter.id==="nahat"?"악마동화 · 유나이트":DATA[fighter.id]?.transform?.name).filter(Boolean).join(" · ")+" 변신 완료!";
   $("announcement").textContent=text;
   await delay(850);
   return;
@@ -2261,6 +2264,9 @@ function turnBadgesHTML(f){
  const badges=[];
  const manaTurns=Math.max(0,Number(f.manaZoneEvasionTurns)||0);
  if(manaTurns>0)badges.push({name:"마나존",turns:manaTurns,type:"team"});
+ /* 나하트의 암옥의 사냥터도 캐릭터 이름 옆에서 남은 턴을 표시한다. */
+ const nahatManaTurns=Math.max(0,Number(f.nahatObscureTurns)||0);
+ if(f.id==="nahat"&&nahatManaTurns>0)badges.push({name:"암옥의 사냥터",turns:nahatManaTurns,type:"personal"});
  if(battle&&battle.field&&Number(battle.field.duration)>0){
   badges.push({name:battle.field.name,turns:Number(battle.field.duration),type:"field"});
  }
@@ -2375,16 +2381,21 @@ function renderBattle(){
  for(const [side,f] of [["player",p],["enemy",e]]){
   const box=$(side+"Art");
   const transformed=!!f.transformed;
-  const artSlot=(transformed?"transform:":"normal:")+f.id+(f.id==="nahat"?":"+(f.transformForm||""):"");
+  const currentForm=transformed&&f.id==="nahat"?(f.transformForm||""):"";
+  const artSlot=(transformed?"transform:":"normal:")+f.id+(f.id==="nahat"?":"+currentForm:"");
   const currentArtVersion=String(artVersion[artSlot]||0);
-  if(box.dataset.id!==f.id||box.dataset.transformed!==String(transformed)||box.dataset.artVersion!==currentArtVersion){
-   box.innerHTML=portrait(f.id,f.id==="nahat"&&transformed?f.transformForm:transformed);
+  if(box.dataset.id!==f.id||box.dataset.transformed!==String(transformed)||box.dataset.form!==currentForm||box.dataset.artVersion!==currentArtVersion){
+   box.innerHTML=portrait(f.id,f.id==="nahat"&&transformed?currentForm:transformed);
    box.dataset.id=f.id;
    box.dataset.transformed=String(transformed);
+   box.dataset.form=currentForm;
    box.dataset.artVersion=currentArtVersion;
   }
   box.classList.toggle("spiritDive",transformed);
-  box.classList.toggle("hasTransformArt",!!(transformed&&(f.id==="nahat"?transformFormArt["nahat:"+f.transformForm]:transformArt[f.id])));
+  box.classList.toggle("nahatUnite",transformed&&f.id==="nahat");
+  const transformLabel=!transformed?"":f.id==="nahat"?"악마동화 · 유나이트 · "+(currentForm||"변신"):f.id==="yuno"?"SPIRIT DIVE · 정령동화":(DATA[f.id]?.transform?.formName||DATA[f.id]?.transform?.name||"변신");
+  if(transformLabel)box.setAttribute("data-transform-label",transformLabel);else box.removeAttribute("data-transform-label");
+  box.classList.toggle("hasTransformArt",!!(transformed&&(f.id==="nahat"?transformFormArt["nahat:"+currentForm]:transformArt[f.id])));
  }
 
  renderMoves();
@@ -3292,10 +3303,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.21 · HOST · "+message;
+   node.textContent="BUILD v0.29.23 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.21]",message);
+  console.log("[PF v0.29.23]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4891,7 +4902,7 @@ function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false,
  },true);
 })();
 
-/* v0.29.21 — 전투 중 언제든 클래스 상성표에 접근할 수 있다.
+/* v0.29.23 — 전투 중 언제든 클래스 상성표에 접근할 수 있다.
    상단 고정 버튼과 양쪽 캐릭터의 CLASS 배지를 탭해 전체 상성표를 연다. */
 $("battleClassChartBtn").onclick=()=>{
  if(battle)v25OpenClassChart();
@@ -5319,12 +5330,13 @@ function v24RenderSwitchIcon(){
   if(transformButton)transformButton.remove();
   if(!nahatPanel){nahatPanel=document.createElement("div");nahatPanel.className="nahatFormPanel";nahatPanel.style.cssText="position:absolute;right:3px;bottom:46px;z-index:10;display:flex;flex-direction:column;gap:3px;";artBox.appendChild(nahatPanel);}
   nahatPanel.innerHTML="";
-  ["카니스","에쿠스","페리스","가루스"].forEach(form=>{const b=document.createElement("button");b.type="button";b.textContent=(f.transformForm===form?"● ":"")+(f.pendingTransformForm===form?"예약 · ":"")+form;b.style.cssText="min-width:76px;padding:4px 6px;border:1px solid #aaa;border-radius:7px;background:"+(f.transformForm===form||f.pendingTransformForm===form?"#7967c9":"#101b2beF")+";color:white;font-size:9px;font-weight:900";b.disabled=busy||battle.phase!=="select"||(f.transformForm===form&&!f.transformPending);b.onclick=()=>{if(busy||battle.phase!=="select")return;f.pendingTransformForm=f.pendingTransformForm===form?null:form;f.transformPending=!!f.pendingTransformForm;renderBattle();announce(f.transformPending?"나하트 "+form+" 변신 예약. 양측 기술 실행 전에 전환한다.":"나하트 변신 예약을 취소했다.");};nahatPanel.appendChild(b);});
+  const heading=document.createElement("div");heading.textContent="악마동화 · 유나이트";heading.style.cssText="padding:4px 6px;border:1px solid #9b83e8;border-radius:7px;background:#28194ddd;color:#eee7ff;font-size:9px;font-weight:1000;text-align:center;white-space:nowrap";nahatPanel.appendChild(heading);
+  ["카니스","에쿠스","페리스","가루스"].forEach(form=>{const b=document.createElement("button");b.type="button";b.textContent=(f.transformForm===form?"● ":"")+(f.pendingTransformForm===form?"예약 · ":"")+form;b.style.cssText="min-width:76px;padding:4px 6px;border:1px solid #aaa;border-radius:7px;background:"+(f.transformForm===form||f.pendingTransformForm===form?"#7967c9":"#101b2beF")+";color:white;font-size:9px;font-weight:900";b.disabled=busy||battle.phase!=="select"||(f.transformForm===form&&!f.transformPending);b.onclick=()=>{if(busy||battle.phase!=="select")return;f.pendingTransformForm=f.pendingTransformForm===form?null:form;f.transformPending=!!f.pendingTransformForm;renderBattle();announce(f.transformPending?"나하트의 악마동화 · 유나이트: "+form+" 폼 변신 예약. 양측 기술 실행 전에 전환한다.":"나하트의 악마동화 · 유나이트 예약을 취소했다.");};nahatPanel.appendChild(b);});
  }else{
   if(nahatPanel)nahatPanel.remove();
   if(transformConfig){
    if(!transformButton){transformButton=document.createElement("button");transformButton.type="button";transformButton.className="v29TransformBtn";transformButton.onclick=()=>{if(busy||battle.phase!=="select"||f.transformed)return;f.transformPending=!f.transformPending;renderBattle();announce(f.transformPending?transformConfig.name+" 변신 예약! 이번 턴 기술 실행 전에 발동한다.":"변신 예약을 취소했다.");};artBox.appendChild(transformButton);}
-   transformButton.textContent=f.transformed?"정령동화 완료":f.transformPending?"변신 예약됨":"스피릿 다이브";
+   transformButton.textContent=f.transformed?(transformConfig.formName||transformConfig.name)+" 완료":f.transformPending?"변신 예약됨":transformConfig.name;
    transformButton.classList.toggle("pending",!!f.transformPending);transformButton.classList.toggle("transformed",!!f.transformed);
    transformButton.disabled=busy||battle.phase!=="select"||!!f.transformed;
    transformButton.setAttribute("aria-pressed",String(!!(f.transformPending||f.transformed)));
@@ -5671,7 +5683,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.21";
+const PF_BUILD_VERSION="v0.29.23";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
