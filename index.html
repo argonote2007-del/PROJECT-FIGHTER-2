@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.26</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.27</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.26 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.27 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.26 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.27 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -3304,10 +3304,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.26 · HOST · "+message;
+   node.textContent="BUILD v0.29.27 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.26]",message);
+  console.log("[PF v0.29.27]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5699,7 +5699,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.26";
+const PF_BUILD_VERSION="v0.29.27";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5896,56 +5896,64 @@ function listenRoom(code){
    pfDiag("전투 문구 수신 실패: "+(err&&err.message?err.message:String(err)),true);
   });
  }
- stopRoomListener=onValue(currentRoomRef,snap=>{
-  if(!snap.exists()){
-   el('onlineRoomStatus').textContent='방이 종료되었거나 존재하지 않아.';
-   el('onlineStartDraft').classList.add('hidden');
-   return;
-  }
-  const room=snap.val();
-  if(currentRole==="guest"&&room.battleState&&Number(room.battleState.revision||0)>lastAppliedBattleRevision){
-   lastAppliedBattleRevision=Number(room.battleState.revision||0);
-   if(typeof window.onlineApplyBattleState==="function")window.onlineApplyBattleState(room.battleState.state);
-  }
-  // v0.29.10: 부모 room 구독에서도 전투 문구를 수신한다.
-  // battleState 적용이 announcement를 덮더라도, 호스트의 최신 문구를 마지막에 표시한다.
-  if(currentRole==="guest"&&room.battleMessage){
-   const syncedMessage=room.battleMessage;
-   if(syncedMessage.id&&syncedMessage.id!==lastRoomBattleMessageId){
-    lastRoomBattleMessageId=syncedMessage.id;
-    if(syncedMessage.kind==="transformation"&&typeof window.receiveOnlineTransformationEvent==="function"){
-     window.receiveOnlineTransformationEvent(syncedMessage).catch(err=>console.error("온라인 변신 적용 실패",err));
-    }
-    const announcementNode=document.getElementById("announcement");
-    if(announcementNode)announcementNode.textContent=syncedMessage.hiddenForOpponent?"":String(syncedMessage.text||"");
-    pfDiag(syncedMessage.hiddenForOpponent?"전투 문구 비공개":"전투 문구 수신 · "+String(syncedMessage.text||"").slice(0,24));
-   }
-  }
-  if(room.guestUid){
+ // v0.29.27: 방 전체(room) 구독을 제거하고 필요한 하위 노드만 구독한다.
+ // animation/ack/action/battleState가 바뀔 때마다 방 전체 스냅샷을 다시 읽고
+ // 파싱하던 비용을 없애 전투 중 불필요한 네트워크·렌더링 작업을 줄인다.
+ const roomStops=[];
+ const roomPath=key=>ref(onlineDb,'roomIndex/'+code+'/'+key);
+ let roomGuestUid=null, roomPhase=null, opponentTeamValue=null, opponentLineupValue=null;
+ const renderRoomStatus=()=>{
+  if(roomGuestUid){
    el('onlineRoomStatus').textContent='상대 플레이어 참가 완료!\n두 기기가 연결됐어.';
-   if(currentRole==='host'&&!room.phase)el('onlineStartDraft').classList.remove('hidden');
+   if(currentRole==='host'&&!roomPhase)el('onlineStartDraft').classList.remove('hidden');
    else el('onlineStartDraft').classList.add('hidden');
   }else{
    el('onlineRoomStatus').textContent='상대방을 기다리는 중...\n친구에게 6자리 코드를 알려줘.';
    el('onlineStartDraft').classList.add('hidden');
   }
-  if(room.phase==='teamSelect'&&!onlineDraftStarted){
+ };
+ const receiveOpponentData=()=>{
+  if(roomPhase!=='teamSelect'||!currentRole)return;
+  if(opponentTeamValue&&!onlineOpponentSent){
+   onlineOpponentSent=true;
+   if(typeof window.onlineReceiveOpponentTeam==='function')window.onlineReceiveOpponentTeam(opponentTeamValue);
+  }
+  if(opponentLineupValue&&!onlineOpponentLineupSent){
+   onlineOpponentLineupSent=true;
+   const ids=opponentLineupValue.ids||opponentLineupValue;
+   if(typeof window.onlineReceiveOpponentLineup==='function')window.onlineReceiveOpponentLineup(ids);
+  }
+ };
+ const watch=(key,callback)=>{
+  const stop=onValue(roomPath(key),snap=>callback(snap.val()),err=>{
+   pfDiag('방 정보 수신 오류('+key+'): '+err.message,true);
+   setStatus('방 정보 수신 오류: '+err.message,true);
+  });
+  roomStops.push(stop);
+ };
+ watch('guestUid',value=>{roomGuestUid=value||null;renderRoomStatus();});
+ watch('phase',value=>{
+  roomPhase=value||null;
+  renderRoomStatus();
+  if(roomPhase==='teamSelect'&&!onlineDraftStarted){
    onlineDraftStarted=true;
    if(typeof window.onlineBeginTeamSelection==='function')window.onlineBeginTeamSelection();
   }
-  if(room.phase==='teamSelect'&&currentRole){
-   const opponentKey=currentRole==='host'?'guestTeam':'hostTeam';
-   if(room[opponentKey]&&!onlineOpponentSent){
-    onlineOpponentSent=true;
-    if(typeof window.onlineReceiveOpponentTeam==='function')window.onlineReceiveOpponentTeam(room[opponentKey]);
+  receiveOpponentData();
+ });
+ const opponentTeamKey=currentRole==='host'?'guestTeam':'hostTeam';
+ const opponentLineupKey=currentRole==='host'?'guestLineup':'hostLineup';
+ watch(opponentTeamKey,value=>{opponentTeamValue=value||null;receiveOpponentData();});
+ watch(opponentLineupKey,value=>{opponentLineupValue=value||null;receiveOpponentData();});
+ if(currentRole==='guest'){
+  watch('battleState',value=>{
+   if(value&&Number(value.revision||0)>lastAppliedBattleRevision){
+    lastAppliedBattleRevision=Number(value.revision||0);
+    if(typeof window.onlineApplyBattleState==='function')window.onlineApplyBattleState(value.state);
    }
-   const opponentLineupKey=currentRole==='host'?'guestLineup':'hostLineup';
-   if(room[opponentLineupKey]&&!onlineOpponentLineupSent){
-    onlineOpponentLineupSent=true;
-    if(typeof window.onlineReceiveOpponentLineup==='function')window.onlineReceiveOpponentLineup(room[opponentLineupKey].ids||room[opponentLineupKey]);
-   }
-  }
- },err=>{pfDiag("방 정보 수신 오류: "+err.message,true);setStatus('방 정보 수신 오류: '+err.message,true);});
+  });
+ }
+ stopRoomListener=()=>{roomStops.splice(0).forEach(stop=>{try{stop();}catch(e){}});};
 }
 
 el('onlineEntry').addEventListener('click',()=>{showOnline();});
