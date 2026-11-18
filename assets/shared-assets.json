@@ -1,5 +1,5 @@
 {
-  "version": 1794988306750,
+  "version": 1795013876888,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -78,6 +78,15 @@
       "name": "자독희 리오레이아 · 일반 일러스트"
     }
   },
-  "vfx": {},
+  "vfx": {
+    "gilgamesh__ultimate": {
+      "path": "assets/shared/vfx/gilgamesh__ultimate.jpg",
+      "name": "길가메시 · 에누마 엘리시"
+    },
+    "enkidu__enkiduUltimate": {
+      "path": "assets/shared/vfx/enkidu__enkiduUltimate.jpg",
+      "name": "엘키두 · 에누마 엘리시"
+    }
+  },
   "backgrounds": {}
 }
