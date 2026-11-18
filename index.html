@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.18</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.20</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -275,7 +275,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.18 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.20 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -387,7 +387,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
   </div>
   <div class="profileArt" id="profileArt"></div>
   <div class="profileTitle" id="profileTitle"></div>
-  <div class="profileResource" id="profileClassInfo" style="margin:8px 0 12px">현재 클래스: 미지정</div>
+  <div class="profileResource" id="profileClassInfo" style="margin:8px 0 12px">적정 클래스: 확인 중</div>
   <div class="sectionLabel">BASE STATS · 원래 능력치</div>
   <div class="stats" id="profileStats"></div>
   <div class="sectionLabel hidden" id="profileCurrentLabel">CURRENT STATS · 현재 능력치</div>
@@ -404,7 +404,8 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:46%;overflow-wrap:anywhere">BUILD v0.29.18 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.20 · 연결 상태 확인 중</span>
+  <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
  <div id="arena">
@@ -1857,6 +1858,13 @@ function openProfile(id,runtimeFighter=null){
  $("profileName").style.color=d.color;
  $("profileArt").innerHTML=portrait(id);
  $("profileTitle").textContent=d.title;
+ const eligibleClasses=CLASS_ELIGIBILITY[id]||[];
+ const profileClassInfo=$("profileClassInfo");
+ if(runtimeFighter){
+  profileClassInfo.textContent="현재 클래스: "+(runtimeFighter.className||"미지정");
+ }else{
+  profileClassInfo.textContent="적정 클래스: "+(eligibleClasses.length?eligibleClasses.join(" · "):"별도 지정 없음");
+ }
 
  $("profileStats").innerHTML=STAT_LABELS.map(([k,label])=>`
   <div class="stat" style="--c:${d.color}">
@@ -2236,7 +2244,7 @@ function infoHTML(f){
    ${turnBadgesHTML(f)}
   </div>
   <button type="button" class="classBadge" data-class-badge="1"
-   aria-label="현재 클래스 ${f.className||"미지정"} 길게 눌러 상성표 보기"
+   aria-label="현재 클래스 ${f.className||"미지정"}. 눌러 클래스 상성표 보기"
    style="margin-top:4px;padding:3px 8px;border:1px solid #8ba3bf;border-radius:6px;background:#14243a;color:#e8f2ff;font-size:10px;font-weight:900">
    CLASS · ${f.className||"미지정"}
   </button>
@@ -3234,10 +3242,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.18 · HOST · "+message;
+   node.textContent="BUILD v0.29.20 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.18]",message);
+  console.log("[PF v0.29.20]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4754,7 +4762,7 @@ execute=async function(side,index,moveOverride,order){
 })();
 
 /* v0.25.3 — 클래스 배지 및 클래스 선택 화면에서 전체 상성표 표시 */
-function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false){
+function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false,returnToLineupPicker=false){
  const rows=CLASS_NAMES.map(att=>{
   const cells=CLASS_NAMES.map(def=>{
    const mult=classMultiplier(att,def),label=classMultiplierLabel(mult);
@@ -4776,6 +4784,7 @@ function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false)
  $("v25CloseClassChart").onclick=()=>{
   if(returnToClassPicker)v24RenderClassPicker();
   else if(returnToSwitchPicker)v24ShowSwitchPicker();
+  else if(returnToLineupPicker)v24RenderLineupPicker();
   else closeSystemModal();
  };
 }
@@ -4797,6 +4806,18 @@ function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false)
   if(fired&&e.target.closest("[data-class-badge]")){e.preventDefault();e.stopPropagation();fired=false;}
  },true);
 })();
+
+/* v0.29.20 — 전투 중 언제든 클래스 상성표에 접근할 수 있다.
+   상단 고정 버튼과 양쪽 캐릭터의 CLASS 배지를 탭해 전체 상성표를 연다. */
+$("battleClassChartBtn").onclick=()=>{
+ if(battle)v25OpenClassChart();
+};
+$("arena").addEventListener("click",e=>{
+ const badge=e.target.closest("[data-class-badge]");
+ if(!badge||!battle)return;
+ e.preventDefault();
+ v25OpenClassChart();
+});
 
 /* v0.21.0 배경 시스템
    기본 배경과 필드별 배경을 분리하고, 필드 교체/종료에 맞춰 전환한다.
@@ -5017,14 +5038,17 @@ function v24RenderLineupPicker(){
   <h2>STARTING LINEUP · 3명 선발</h2>
   <p>캐릭터를 누른 순서대로 출전 순서가 정해져. 정확히 3명을 선택해.</p>
   <p id="v24LineupCount">선발 ${v24Lineup.length}/3</p>
+  <button class="btn full" id="v24LineupClassChart" style="margin:6px 0 10px">클래스 상성표 보기</button>
   <div class="v24TeamGrid" id="v24LineupGrid"></div>
   <button class="btn primary full" id="v24StartTeam" ${v24Lineup.length===3?'':'disabled'}>${online?'출전 3명 확정 및 상대에게 전송':'3대3 전투 시작'}</button>
   <button class="btn full" id="v24BackReveal" style="margin-top:8px">팀 공개 화면으로</button>`);
+ $("v24LineupClassChart").onclick=()=>v25OpenClassChart(false,false,true);
  const grid=$("v24LineupGrid");
  v24DraftSix.forEach(id=>{
   const pos=v24Lineup.indexOf(id),d=DATA[id],b=document.createElement("button");
   b.type="button";b.className="v24TeamCard"+(pos>=0?" selected":"");
-  b.innerHTML=`${portrait(id)}<span><b>${d.name}</b><small>${pos>=0?"출전 순서 "+(pos+1):d.title}</small></span>`;
+  const assignedClass=v24DraftClasses[id]||"미지정";
+  b.innerHTML=`${portrait(id)}<span><b>${d.name}</b><small>현재 클래스 · ${assignedClass}${pos>=0?" · 출전 순서 "+(pos+1):" · "+d.title}</small></span>`;
   b.onclick=()=>{
    if(pos>=0)v24Lineup=v24Lineup.filter(x=>x!==id);
    else if(v24Lineup.length<3)v24Lineup.push(id);
@@ -5240,9 +5264,12 @@ function v24ShowSwitchPicker(){
  openSystemModal(`<h2>CHANGE FIGHTER · 교체</h2><p>교체는 이번 턴 행동을 소비해. 대기 중인 캐릭터의 상태 효과와 남은 지속시간은 유지돼.</p><button class="btn full" id="v24SwitchClassChart" style="margin:6px 0 10px">클래스 상성표 보기</button><div id="v24SwitchOptions"></div><button class="btn full" id="v24SwitchCancel" style="margin-top:8px">취소</button>`);
  $("v24SwitchClassChart").onclick=()=>v25OpenClassChart(false,true);
  const box=$("v24SwitchOptions");
+ const opponent=active("cpu");
  options.forEach(({x,i})=>{
   const b=document.createElement("button");b.className="v24TeamCard";b.style.width="100%";b.style.margin="6px 0";
-  b.innerHTML=`${portrait(x.id)}<span><b>${x.name}</b><small>현재 클래스 · ${x.className||"미지정"} · HP ${x.hp}/${x.maxHp} · 교체 후 출전</small></span>`;
+  const attackMult=classMultiplier(x.className,opponent&&opponent.className);
+  const defenseMult=classMultiplier(opponent&&opponent.className,x.className);
+  b.innerHTML=`${portrait(x.id)}<span><b>${x.name}</b><small>현재 클래스 · ${x.className||"미지정"} · HP ${x.hp}/${x.maxHp}<br>상대 ${opponent?opponent.name:"상대"} 기준: 내가 주는 피해 ${classMultiplierLabel(attackMult)} · 받는 피해 ${classMultiplierLabel(defenseMult)}<br>교체 후 출전</small></span>`;
   b.onclick=()=>{closeSystemModal();playTurn(-2,{isSwitch:true,targetIndex:i,priority:6,name:"교체",type:"status"});};
   box.appendChild(b);
  });
@@ -5560,7 +5587,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.18";
+const PF_BUILD_VERSION="v0.29.20";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
