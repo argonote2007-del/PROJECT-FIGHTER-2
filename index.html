@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.25</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.26</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -96,6 +96,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 #arena{--fighterColor:#f05a77;position:relative;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;isolation:isolate;background:radial-gradient(ellipse at 50% 40%,#30455d,#0a111d 75%)}
 #arena:before{content:"";position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 35px,#ffffff04 36px 37px);pointer-events:none}
 .enemyArea{position:relative;flex:43;min-height:0;z-index:1;display:flex;justify-content:flex-end;align-items:center;padding:5px 4%}
+.enemyArea.nahatObscured:after{content:"";position:absolute;inset:0;z-index:3;background:#000;pointer-events:none}
 .enemyInfo{position:absolute;top:8%;left:4%;width:45%;z-index:2}
 .enemyArt{width:53%;height:100%;position:relative;filter:drop-shadow(0 12px 15px #0008)}
 .enemyArt img{transform:scaleX(-1)}
@@ -255,7 +256,6 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .playerArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
 .enemyArt.spiritDive{filter:drop-shadow(0 0 14px #75eaff) drop-shadow(0 0 24px #a7f5ff)}
 .enemyArt.spiritDive:not(.hasTransformArt) img{filter:hue-rotate(12deg) saturate(1.45) brightness(1.12)}
-.playerArt.spiritDive:after,.enemyArt.spiritDive:after{content:attr(data-transform-label);position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:7;white-space:nowrap;padding:5px 9px;border:1px solid #8beaff;border-radius:20px;background:#12334acc;color:#c9f8ff;font-size:9px;font-weight:1000;box-shadow:0 0 16px #4edbff99;pointer-events:none}
 .playerArt.nahatUnite,.enemyArt.nahatUnite{filter:drop-shadow(0 0 14px #a78bfa) drop-shadow(0 0 24px #7656d8)}
 .playerArt.nahatUnite:after,.enemyArt.nahatUnite:after{border-color:#c4b5fd;background:#28194ddd;color:#eee7ff;box-shadow:0 0 16px #9b7cf799}
 .playerArt .v29TransformBtn{position:absolute;right:4px;bottom:53px;z-index:9;min-width:82px;min-height:29px;padding:5px 8px;border:1px solid #73d9e8;border-radius:8px;background:linear-gradient(145deg,#17394aee,#0b1725ee);color:#bff8ff;font-size:9px;font-weight:1000;box-shadow:0 3px 10px #0009}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.25 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.26 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.25 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.26 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -2107,14 +2107,14 @@ function applyTransformation(f,options={}){
   if(foe&&previous==="가루스")foe.nahatSwitchLocked=false;
   if(foe)foe.nahatSwitchLocked=form==="가루스";
   log(f.name+"의 악마동화 · 유나이트! "+(form||"기본 상태")+" 폼으로 전환했다.");
-  if(!options.silent)announce(f.name+" — 악마동화 · 유나이트 · "+(form||"기본 상태")+"!");
+  if(!options.silent)announce("변신 완료!");
   return true;
  }
  if(f.transformed)return false;
  f.transformPending=false;f.transformed=true;
  if(f.id==="yuno"){f.stats.spd=Math.round(f.stats.spd*2);f.stats.tec=Math.round(f.stats.tec*1.5);}
  log(f.name+"의 "+config.name+" 발동! "+config.formName+" 상태가 되었다.");
- if(!options.silent)announce(config.name+" — "+config.formName+"!");
+ if(!options.silent)announce("변신 완료!");
  return true;
 }
 
@@ -2140,13 +2140,13 @@ async function resolveTransformationsBeforeActions(playerF,enemyF){
   await window.onlinePublishTransformationEvent({
    hostId:playerF.id,guestId:enemyF.id,
    hostTransform:playerPending,guestTransform:enemyPending,hostForm:playerF.pendingTransformForm||null,guestForm:enemyF.pendingTransformForm||null,
-   startAt,text:[[playerPending,playerF],[enemyPending,enemyF]].filter(([pending])=>pending).map(([,fighter])=>fighter.id==="nahat"?"악마동화 · 유나이트":DATA[fighter.id]?.transform?.name).filter(Boolean).join(" · ")+" 변신!"
+   startAt,text:"변신 진행 중"
   });
   await waitForOnlineAnimationStart(startAt);
   if(playerPending)applyTransformation(playerF,{silent:true});
   if(enemyPending)applyTransformation(enemyF,{silent:true});
   renderBattle();
-  const text=[[playerPending,playerF],[enemyPending,enemyF]].filter(([pending])=>pending).map(([,fighter])=>fighter.id==="nahat"?"악마동화 · 유나이트":DATA[fighter.id]?.transform?.name).filter(Boolean).join(" · ")+" 변신 완료!";
+  const text="변신 완료!";
   $("announcement").textContent=text;
   await delay(850);
   return;
@@ -2377,6 +2377,8 @@ function renderBattle(){
 
  updateInfo("playerInfo",p);
  updateInfo("enemyInfo",e);
+ const enemyArea=document.querySelector(".enemyArea");
+ if(enemyArea)enemyArea.classList.toggle("nahatObscured",!!(e&&e.id==="nahat"&&Number(e.nahatObscureTurns)>0));
 
  for(const [side,f] of [["player",p],["enemy",e]]){
   const box=$(side+"Art");
@@ -2393,8 +2395,7 @@ function renderBattle(){
   }
   box.classList.toggle("spiritDive",transformed);
   box.classList.toggle("nahatUnite",transformed&&f.id==="nahat");
-  const transformLabel=!transformed?"":f.id==="nahat"?"악마동화 · 유나이트 · "+(currentForm||"변신"):f.id==="yuno"?"SPIRIT DIVE · 정령동화":(DATA[f.id]?.transform?.formName||DATA[f.id]?.transform?.name||"변신");
-  if(transformLabel)box.setAttribute("data-transform-label",transformLabel);else box.removeAttribute("data-transform-label");
+  box.removeAttribute("data-transform-label");
   box.classList.toggle("hasTransformArt",!!(transformed&&(f.id==="nahat"?transformFormArt["nahat:"+currentForm]:transformArt[f.id])));
  }
 
@@ -3303,10 +3304,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.25 · HOST · "+message;
+   node.textContent="BUILD v0.29.26 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.25]",message);
+  console.log("[PF v0.29.26]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3319,8 +3320,9 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  showHostFXDiag("공격 함수 진입 · 이벤트 전송 시도");
  let event=null;
  try{
+  const obscureForOpponent=side==="player"&&user.id==="nahat"&&((Number(user.nahatObscureTurns)>0)||m?.effect==="nahatObscure");
   event=await window.onlinePublishAnimationStart({
-   turn:battle.turn,side,attackerId:user.id,move:m,hit:!!hit,
+   turn:battle.turn,side,attackerId:user.id,move:m,hit:!!hit,obscured:obscureForOpponent,
    duration:fast?(isUltimate(m)?480:300):(isUltimate(m)?950:620),
    startAt:Date.now()+(Number(window.onlineServerTimeOffset)||0)+1800
   });
@@ -5343,8 +5345,7 @@ function v24RenderSwitchIcon(){
   if(transformButton)transformButton.remove();
   if(!nahatPanel){nahatPanel=document.createElement("div");nahatPanel.className="nahatFormPanel";nahatPanel.style.cssText="position:absolute;right:3px;bottom:46px;z-index:10;display:flex;flex-direction:column;gap:3px;";artBox.appendChild(nahatPanel);}
   nahatPanel.innerHTML="";
-  const heading=document.createElement("div");heading.textContent="악마동화 · 유나이트";heading.style.cssText="padding:4px 6px;border:1px solid #9b83e8;border-radius:7px;background:#28194ddd;color:#eee7ff;font-size:9px;font-weight:1000;text-align:center;white-space:nowrap";nahatPanel.appendChild(heading);
-  ["카니스","에쿠스","페리스","가루스"].forEach(form=>{const b=document.createElement("button");b.type="button";b.textContent=(f.transformForm===form?"● ":"")+(f.pendingTransformForm===form?"예약 · ":"")+form;b.style.cssText="min-width:76px;padding:4px 6px;border:1px solid #aaa;border-radius:7px;background:"+(f.transformForm===form||f.pendingTransformForm===form?"#7967c9":"#101b2beF")+";color:white;font-size:9px;font-weight:900";b.disabled=busy||battle.phase!=="select"||(f.transformForm===form&&!f.transformPending);b.onclick=()=>{if(busy||battle.phase!=="select")return;f.pendingTransformForm=f.pendingTransformForm===form?null:form;f.transformPending=!!f.pendingTransformForm;renderBattle();announce(f.transformPending?"나하트의 악마동화 · 유나이트: "+form+" 폼 변신 예약. 양측 기술 실행 전에 전환한다.":"나하트의 악마동화 · 유나이트 예약을 취소했다.");};nahatPanel.appendChild(b);});
+  ["카니스","에쿠스","페리스","가루스"].forEach(form=>{const b=document.createElement("button");b.type="button";b.textContent=(f.transformForm===form?"● ":"")+(f.pendingTransformForm===form?"예약 · ":"")+form;b.style.cssText="min-width:76px;padding:4px 6px;border:1px solid #aaa;border-radius:7px;background:"+(f.transformForm===form||f.pendingTransformForm===form?"#7967c9":"#101b2beF")+";color:white;font-size:9px;font-weight:900";b.disabled=busy||battle.phase!=="select"||(f.transformForm===form&&!f.transformPending);b.onclick=()=>{if(busy||battle.phase!=="select")return;f.pendingTransformForm=f.pendingTransformForm===form?null:form;f.transformPending=!!f.pendingTransformForm;renderBattle();announce(f.transformPending?"변신 예약됨. 양측 기술 실행 전에 전환한다.":"변신 예약을 취소했다.");};nahatPanel.appendChild(b);});
  }else{
   if(nahatPanel)nahatPanel.remove();
   if(transformConfig){
@@ -5679,10 +5680,12 @@ let onlineMessageSequence=0;
 window.onlinePublishBattleMessage=async(message)=>{
  if(currentRole!=="host"||!currentRoomCode||!onlineUser)return;
  const id=Date.now()+"_"+(++onlineMessageSequence);
+ const hostFighter=typeof active==="function"?active("player"):null;
+ const hiddenForOpponent=!!(hostFighter&&hostFighter.id==="nahat"&&(Number(hostFighter.nahatObscureTurns)>0));
  await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/battleMessage'),{
-  id,text:String(message??""),sentAt:Date.now()
+  id,text:hiddenForOpponent?"":String(message??""),hiddenForOpponent,sentAt:Date.now()
  });
- pfDiag("전투 문구 전송 완료 · "+String(message??"").slice(0,24));
+ pfDiag(hiddenForOpponent?"전투 문구 비공개 전송":"전투 문구 전송 완료 · "+String(message??"").slice(0,24));
 };
 window.onlinePublishTransformationEvent=async(payload)=>{
  if(currentRole!=="host"||!currentRoomCode||!onlineUser)throw new Error("온라인 변신 이벤트를 전송할 수 없어.");
@@ -5696,7 +5699,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.25";
+const PF_BUILD_VERSION="v0.29.26";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5764,19 +5767,31 @@ window.onlineReceiveAnimationEvent=(event)=>{
     await delay(100);
    }
    if(!attacker)throw new Error("공격 캐릭터 동기화 시간 초과: "+String(event.attackerId||"ID 없음"));
-   pfDiag("연출 재생 중 · "+String(event.move&&event.move.name||"공격"));
+   pfDiag(event.obscured?"행동 정보 비공개":"연출 재생 중");
    lastGuestAnimationId=event.id;
-   await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
+   if(event.obscured){
     const impact=await window.onlineWaitForAnimationImpact(event.id);
-    if(!impact)return;
-    if(impact.battleState&&typeof window.onlineApplyBattleImpactState==="function")
-     window.onlineApplyBattleImpactState(impact.battleState);
-    if(event.move&&event.move.type!=="status"&&Number(impact.damage)>0){
-     const targetSide=mirrorSide==="player"?"cpu":"player";
-     damageFloat(targetSide,Number(impact.damage),impact.color||"#ffffff");
-     sound(130,.15,"sawtooth");
+    if(impact){
+     if(impact.battleState&&typeof window.onlineApplyBattleImpactState==="function")
+      window.onlineApplyBattleImpactState(impact.battleState);
+     if(Number(impact.damage)>0){
+      damageFloat("player",Number(impact.damage),impact.color||"#ffffff");
+      sound(130,.15,"sawtooth");
+     }
     }
-   },Number(event.duration)||undefined);
+   }else{
+    await playFX(mirrorSide,attacker,event.move,!!event.hit,async()=>{
+     const impact=await window.onlineWaitForAnimationImpact(event.id);
+     if(!impact)return;
+     if(impact.battleState&&typeof window.onlineApplyBattleImpactState==="function")
+      window.onlineApplyBattleImpactState(impact.battleState);
+     if(event.move&&event.move.type!=="status"&&Number(impact.damage)>0){
+      const targetSide=mirrorSide==="player"?"cpu":"player";
+      damageFloat(targetSide,Number(impact.damage),impact.color||"#ffffff");
+      sound(130,.15,"sawtooth");
+     }
+    },Number(event.duration)||undefined);
+   }
    await set(ref(onlineDb,'roomIndex/'+currentRoomCode+'/animationAcks/'+event.id+'/guest'),{uid:onlineUser.uid,finishedAt:Date.now()});
    pfDiag("연출 완료 · 확인 응답 전송");
   }catch(err){
@@ -5875,7 +5890,7 @@ function listenRoom(code){
     window.receiveOnlineTransformationEvent(message).catch(err=>console.error("온라인 변신 적용 실패",err));
    }
    const node=document.getElementById("announcement");
-   if(node)node.textContent=String(message.text||"");
+   if(node)node.textContent=message.hiddenForOpponent?"":String(message.text||"");
   },err=>{
    console.error("게스트 전투 문구 수신 실패",err);
    pfDiag("전투 문구 수신 실패: "+(err&&err.message?err.message:String(err)),true);
@@ -5902,8 +5917,8 @@ function listenRoom(code){
      window.receiveOnlineTransformationEvent(syncedMessage).catch(err=>console.error("온라인 변신 적용 실패",err));
     }
     const announcementNode=document.getElementById("announcement");
-    if(announcementNode)announcementNode.textContent=String(syncedMessage.text||"");
-    pfDiag("전투 문구 수신 · "+String(syncedMessage.text||"").slice(0,24));
+    if(announcementNode)announcementNode.textContent=syncedMessage.hiddenForOpponent?"":String(syncedMessage.text||"");
+    pfDiag(syncedMessage.hiddenForOpponent?"전투 문구 비공개":"전투 문구 수신 · "+String(syncedMessage.text||"").slice(0,24));
    }
   }
   if(room.guestUid){
