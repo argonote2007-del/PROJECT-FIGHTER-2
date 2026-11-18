@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.23</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.24</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.23 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.24 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.23 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.24 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -3303,10 +3303,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.23 · HOST · "+message;
+   node.textContent="BUILD v0.29.24 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.23]",message);
+  console.log("[PF v0.29.24]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4702,19 +4702,29 @@ window.applyCloudPFAssets=async(data)=>{
  const artData=data.art||{};
  for(const [assetKey,meta] of Object.entries(artData)){
   if(!meta||!meta.url)continue;
-  if(assetKey.startsWith("nahat__")){const form=assetKey.slice(7);if(!["카니스","에쿠스","페리스","가루스"].includes(form))continue;transformFormArt["nahat:"+form]=meta.url;cacheBlob(meta.url,"art-transform:nahat:"+form);
+  if(assetKey.startsWith("nahat__")){
+   const form=assetKey.slice(7);
+   if(!["카니스","에쿠스","페리스","가루스"].includes(form))continue;
+   transformFormArt["nahat:"+form]=meta.url;
+   artVersion["transform:nahat:"+form]=(artVersion["transform:nahat:"+form]||0)+1;
+   cacheBlob(meta.url,"art-transform:nahat:"+form);
   }else if(assetKey.endsWith("__transform")){
    const id=assetKey.slice(0,-11);
    if(!DATA[id]||!DATA[id].transform)continue;
    transformArt[id]=meta.url;
+   artVersion["transform:"+id]=(artVersion["transform:"+id]||0)+1;
    cacheBlob(meta.url,"art-transform:"+id);
   }else{
    const id=assetKey;
    if(!DATA[id])continue;
    art[id]=meta.url;
+   artVersion["normal:"+id]=(artVersion["normal:"+id]||0)+1;
    cacheBlob(meta.url,id);
   }
  }
+ // GitHub 이미지가 초기 화면 렌더링 이후 도착해도 전투 초상화를 즉시 다시 그린다.
+ if(typeof renderCards==="function")renderCards();
+ if(battle&&typeof renderBattle==="function")renderBattle();
  const vfxData=data.vfx||{};
  for(const [key,meta] of Object.entries(vfxData)){
   if(!meta||!meta.url)continue;
@@ -4902,7 +4912,7 @@ function v25OpenClassChart(returnToClassPicker=false,returnToSwitchPicker=false,
  },true);
 })();
 
-/* v0.29.23 — 전투 중 언제든 클래스 상성표에 접근할 수 있다.
+/* v0.29.24 — 전투 중 언제든 클래스 상성표에 접근할 수 있다.
    상단 고정 버튼과 양쪽 캐릭터의 CLASS 배지를 탭해 전체 상성표를 연다. */
 $("battleClassChartBtn").onclick=()=>{
  if(battle)v25OpenClassChart();
@@ -5683,7 +5693,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.23";
+const PF_BUILD_VERSION="v0.29.24";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
