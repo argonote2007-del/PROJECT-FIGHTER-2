@@ -1,5 +1,5 @@
 {
-  "version": 1794982948058,
+  "version": 1794988306750,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -45,20 +45,20 @@
       "path": "assets/shared/art/nahat.png",
       "name": "나하트 · 일반 일러스트"
     },
-    "nahat__카니스": {
-      "path": "assets/shared/art-transform/nahat__카니스.png",
+    "nahat__canis": {
+      "path": "assets/shared/art-transform/nahat__canis.png",
       "name": "나하트 · 카니스"
     },
-    "nahat__에쿠스": {
-      "path": "assets/shared/art-transform/nahat__에쿠스.png",
+    "nahat__equus": {
+      "path": "assets/shared/art-transform/nahat__equus.png",
       "name": "나하트 · 에쿠스"
     },
-    "nahat__페리스": {
-      "path": "assets/shared/art-transform/nahat__페리스.png",
+    "nahat__felis": {
+      "path": "assets/shared/art-transform/nahat__felis.png",
       "name": "나하트 · 페리스"
     },
-    "nahat__가루스": {
-      "path": "assets/shared/art-transform/nahat__가루스.png",
+    "nahat__garus": {
+      "path": "assets/shared/art-transform/nahat__garus.png",
       "name": "나하트 · 가루스"
     },
     "malzeno": {
