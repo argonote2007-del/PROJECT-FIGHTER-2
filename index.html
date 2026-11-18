@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.24</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.25</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.24 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.25 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.24 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.25 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -3303,10 +3303,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.24 · HOST · "+message;
+   node.textContent="BUILD v0.29.25 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.24]",message);
+  console.log("[PF v0.29.25]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4589,8 +4589,9 @@ async function exportLocalPFAssetsZip(){
    const ext=pfBlobExtension(item.blob);
    const group=item.kind==="art"||item.kind==="artTransform"||item.kind==="nahatForm"?"art":item.kind==="vfx"?"vfx":"backgrounds";
    const fileGroup=(item.kind==="artTransform"||item.kind==="nahatForm")?"art-transform":group;
-   const filePath="assets/shared/"+fileGroup+"/"+(item.kind==="nahatForm"?"nahat__"+item.id:item.id.replace(":","__"))+"."+ext;
-   const key=item.kind==="vfx"?item.id.replace(":","__"):item.kind==="artTransform"?item.id+"__transform":item.kind==="nahatForm"?"nahat__"+item.id:item.id;
+   const nahatFormSlug={"카니스":"canis","에쿠스":"equus","페리스":"felis","가루스":"garus"};
+   const filePath="assets/shared/"+fileGroup+"/"+(item.kind==="nahatForm"?"nahat__"+(nahatFormSlug[item.id]||item.id):item.id.replace(":","__"))+"."+ext;
+   const key=item.kind==="vfx"?item.id.replace(":","__"):item.kind==="artTransform"?item.id+"__transform":item.kind==="nahatForm"?"nahat__"+(nahatFormSlug[item.id]||item.id):item.id;
    manifest[group][key]={path:filePath,name:item.name};
    files.push({name:filePath,bytes:new Uint8Array(await item.blob.arrayBuffer())});
   }
@@ -4598,7 +4599,7 @@ async function exportLocalPFAssetsZip(){
   const zip=pfZipStore(files),url=URL.createObjectURL(zip),a=document.createElement("a");
   a.href=url;a.download="PROJECT_FIGHTER_GITHUB_ASSETS.zip";document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),60000);
-  if(status)status.textContent="내보내기 완료: 이미지 "+items.length+"개와 shared-assets.json을 ZIP으로 만들었어. 압축을 풀고 assets 폴더를 GitHub 저장소 최상위에 올려 줘.";
+  if(status)status.textContent="내보내기 완료: 이미지 "+items.length+"개와 shared-assets.json을 ZIP으로 만들었어. 나하트 변신 이미지는 영문 파일명(canis/equus/felis/garus)으로 저장했어. 압축을 풀고 assets 폴더를 GitHub 저장소 최상위에 올려 줘.";
  }catch(err){if(status)status.textContent="내보내기 실패: "+err.message;}
  finally{if(button)button.disabled=false;}
 }
@@ -4702,9 +4703,11 @@ window.applyCloudPFAssets=async(data)=>{
  const artData=data.art||{};
  for(const [assetKey,meta] of Object.entries(artData)){
   if(!meta||!meta.url)continue;
-  if(assetKey.startsWith("nahat__")){
-   const form=assetKey.slice(7);
-   if(!["카니스","에쿠스","페리스","가루스"].includes(form))continue;
+  if(String(assetKey).normalize("NFC").startsWith("nahat__")){
+   const rawForm=String(assetKey).normalize("NFC").slice(7);
+   const nahatFormAliases={"카니스":"카니스","에쿠스":"에쿠스","페리스":"페리스","가루스":"가루스",canis:"카니스",equus:"에쿠스",felis:"페리스",garus:"가루스"};
+   const form=nahatFormAliases[rawForm];
+   if(!form)continue;
    transformFormArt["nahat:"+form]=meta.url;
    artVersion["transform:nahat:"+form]=(artVersion["transform:nahat:"+form]||0)+1;
    cacheBlob(meta.url,"art-transform:nahat:"+form);
@@ -5693,7 +5696,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.24";
+const PF_BUILD_VERSION="v0.29.25";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
@@ -5808,7 +5811,10 @@ async function loadGitHubSharedAssets(){
   const version=String(manifest.version||"1");
   const normalize=group=>Object.fromEntries(Object.entries(manifest[group]||{}).map(([key,meta])=>{
    if(!meta||!meta.path)return [key,null];
-   const url=new URL(meta.path,PF_GITHUB_BASE);
+   // GitHub의 한글 파일명은 NFD(분리형)로 저장될 수 있다. 경로를 NFD로 맞춰
+   // 기존 한글 파일과 새 영문 파일을 모두 안정적으로 찾는다.
+   const normalizedPath=String(meta.path).normalize("NFD");
+   const url=new URL(normalizedPath,PF_GITHUB_BASE);
    url.searchParams.set("v",version);
    return [key,{...meta,url:url.href}];
   }).filter(([,meta])=>!!meta));
