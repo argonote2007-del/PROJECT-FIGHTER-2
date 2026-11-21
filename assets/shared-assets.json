@@ -1,5 +1,5 @@
 {
-  "version": 1795013876888,
+  "version": 1795272876966,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -76,6 +76,14 @@
     "violetRathian": {
       "path": "assets/shared/art/violetRathian.png",
       "name": "자독희 리오레이아 · 일반 일러스트"
+    },
+    "siegfried": {
+      "path": "assets/shared/art/siegfried.png",
+      "name": "지크프리트 · 일반 일러스트"
+    },
+    "qinShiHuang": {
+      "path": "assets/shared/art/qinShiHuang.png",
+      "name": "시황제 · 일반 일러스트"
     }
   },
   "vfx": {
