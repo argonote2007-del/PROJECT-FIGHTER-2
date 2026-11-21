@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.27</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.28</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.27 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.28 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.27 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.28 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -493,7 +493,7 @@ fate:{
   subtitle:"페이트",
   icon:"♛",
   color:"#f5cb62",
-  characters:["gilgamesh","enkidu","richard","merlin","morgan","altria"]
+  characters:["gilgamesh","enkidu","richard","merlin","morgan","altria","siegfried","qinShiHuang"]
  },
  mh:{
   name:"MONSTER HUNTER",subtitle:"몬스터 헌터",icon:"✦",color:"#d78b62",
@@ -728,6 +728,34 @@ const DATA={
   ]
  }
 
+ ,
+ siegfried:{
+  name:"지크프리트",title:"용살자",color:"#d9b66e",
+  trait:"아머 오브 파프니르 — 위력 60 이하 기술의 피해를 무효화하고, 위력 60 초과 기술의 피해를 절반으로 받는다.",
+  stats:{hp:190,atk:100,def:130,tec:60,res:130,spd:70},
+  resource:"용혈",max:0,
+  resourceDesc:"위력 60 이하 기술은 피해 0, 위력 60 초과 기술은 최종 피해량의 50%만 받는다.",
+  moves:[
+   M("siegfriedBloodKnight","용혈의 기사",0,8,100,0,"status","자신의 최대 HP의 절반을 회복한다.",1,{effect:"siegfriedHeal"}),
+   M("siegfriedNibelungen","니벨룽겐의 노래",0,6,100,0,"status","다음 자신의 궁극기 위력을 50 올리고 공격 랭크를 1 올린다.",1,{effect:"siegfriedSong"}),
+   M("siegfriedDragonSlayer","용살의 대영웅",90,8,100,0,"physical","위력 90의 물리 공격."),
+   M("siegfriedBalmung","환상대검-발뭉",60,3,100,2,"physical","우선도 +2의 위력 60 물리 궁극기.",1,{ultimate:true})
+  ]
+ },
+ qinShiHuang:{
+  name:"시황제",title:"시작의 왕",color:"#d9bd82",
+  trait:"중앙집권 — 상대 캐릭터의 능력치 랭크가 하락할 때마다 시황제의 동일 능력치 랭크가 실제 하락량만큼 상승한다.",
+  stats:{hp:170,atk:110,def:110,tec:110,res:110,spd:110},
+  resource:"중앙집권",max:0,
+  resourceDesc:"상대의 공격·방어·특공·특방·스피드 랭크가 실제 하락하면 시황제의 동일 랭크가 같은 양만큼 상승한다. 궁극기로 발생한 변화는 대기 중인 캐릭터에게도 적용되고 교체 후에도 전투 종료까지 유지된다.",
+  moves:[
+   M("qinBurnBooks","책을 불태워라",0,8,100,0,"status","상대 캐릭터의 특공 랭크를 2 하락시킨다.",1,{effect:"qinLowerTec"}),
+   M("qinBuryScholars","유학자는 묻어버려라",0,8,100,0,"status","상대 캐릭터의 공격 랭크를 2 하락시킨다.",1,{effect:"qinLowerAtk"}),
+   M("qinEternalThrone","영세제위",80,6,100,0,"adaptive","공격과 특공으로 각각 계산해 더 높은 피해를 주는 유형으로 공격한다.",1,{effect:"qinAdaptive"}),
+   M("qinDomination","더 도미네이션 비기닝",0,2,100,0,"status","자신을 제외한 양측의 살아 있는 모든 캐릭터(대기 포함)의 공격·방어·특공·특방·스피드 랭크를 1 하락시키고 자신의 해당 랭크를 1 상승시킨다. 이 변화는 교체해도 유지되며 전투 종료까지 지속된다.",1,{effect:"qinDomination",ultimate:true})
+  ]
+ }
+
 };
 
 /* v0.29.12: 기본 규칙 — 모든 캐릭터의 네 번째 기술은 궁극기.
@@ -750,6 +778,7 @@ const CLASS_ELIGIBILITY={
  enkidu:["랜서","버서커"],merlin:["캐스터"],
  richard:["세이버","라이더","버서커","룰러"],
  morgan:["캐스터","버서커","룰러"],altria:["세이버"],
+  siegfried:["세이버"],qinShiHuang:["룰러","캐스터"],
  malzeno:["랜서","세이버"],safi:["캐스터","버서커","포리너"],
  legiana:["랜서","얼터에고"],violetRathian:["랜서","어새신","프리텐더"]
 };
@@ -918,8 +947,24 @@ function changeRank(target,key,amount,source){
 
  const before=target.ranks[key];
  target.ranks[key]=clamp(before+amount,-6,6);
-
- return before!==target.ranks[key];
+ const actualChange=target.ranks[key]-before;
+ if(actualChange<0&&battle){
+  const targetSide=battle.player.team.includes(target)?"player":battle.cpu.team.includes(target)?"cpu":null;
+  const emperorSide=targetSide==="player"?"cpu":targetSide==="cpu"?"player":null;
+  const emperor=emperorSide?battle[emperorSide].team.find(f=>f.id==="qinShiHuang"&&f.hp>0):null;
+  if(emperor&&emperor!==target){
+   const gain=Math.min(6-(emperor.ranks[key]||0),Math.abs(actualChange));
+   if(gain>0){
+    emperor.ranks[key]=clamp((emperor.ranks[key]||0)+gain,-6,6);
+    if(source&&source.id==="qinShiHuang"&&source.qinPermanentEffectActive)
+     emperor.permanentRanks[key]=clamp((emperor.permanentRanks[key]||0)+gain,-6,6);
+    log("중앙집권 발동! "+emperor.name+"의 "+({atk:"공격",def:"방어",tec:"특공",res:"특방",spd:"스피드"}[key])+" 랭크가 "+gain+" 상승했다.");
+   }
+  }
+ }
+ if(actualChange!==0&&source&&source.id==="qinShiHuang"&&source.qinPermanentEffectActive)
+  target.permanentRanks[key]=clamp((target.permanentRanks[key]||0)+actualChange,-6,6);
+ return actualChange!==0;
 }
 
 /* =========================================================
@@ -1108,6 +1153,9 @@ function makeFighter(id){
   switchedIn:false,
 
   ranks:{atk:0,def:0,tec:0,res:0,spd:0},
+  permanentRanks:{atk:0,def:0,tec:0,res:0,spd:0},
+  nextUltimatePowerBonus:0,
+  qinPermanentEffectActive:false,
 
   allocatedAtk:150,
   allocatedSpd:150
@@ -2856,7 +2904,13 @@ function applyDamage(target,amount,source,flags=null){
   return 0;
  }
 
- const incoming=Math.max(0,amount);
+ let incoming=Math.max(0,amount);
+ if(!(flags&&flags.ignoreTraits)&&target.id==="siegfried"&&Number.isFinite(Number(flags&&flags.movePower))){
+  const movePower=Number(flags.movePower);
+  if(movePower<=60){log("지크프리트의 아머 오브 파프니르! 위력 "+movePower+" 기술의 피해를 무효화했다.");return 0;}
+  incoming=Math.floor(incoming*.5);
+  log("아머 오브 파프니르! 받는 피해가 절반으로 감소했다.");
+ }
  if(target.id==="malzeno"&&!target.malzenoGutsGranted&&target.hp-incoming<=target.maxHp*.25){
   target.malzenoGutsGranted=true;target.malzenoGutsReady=true;
   log("멜 제나의 특성 발동! HP 25% 이하 — 근성을 얻었다!");
@@ -3521,6 +3575,33 @@ function activateStatus(side,actor,target,move){
 
  const sourceId=move.sourceId||actor.id;
 
+ if(move.effect==="siegfriedHeal"){
+  const healed=heal(actor,Math.floor(actor.maxHp/2));
+  log("용혈의 기사! 최대 HP의 절반인 "+healed+" 회복했다.");announce("용혈의 기사!");return;
+ }
+ if(move.effect==="siegfriedSong"){
+  actor.nextUltimatePowerBonus=50;changeRank(actor,"atk",1,actor);
+  log("니벨룽겐의 노래! 다음 궁극기의 위력이 50 증가하고 공격 랭크가 1 상승했다.");
+  announce("니벨룽겐의 노래!");return;
+ }
+ if(move.effect==="qinLowerTec"){
+  changeRank(target,"tec",-2,actor);log("책을 불태워라! "+target.name+"의 특공 랭크가 하락했다.");announce("책을 불태워라!");return;
+ }
+ if(move.effect==="qinLowerAtk"){
+  changeRank(target,"atk",-2,actor);log("유학자는 묻어버려라! "+target.name+"의 공격 랭크가 하락했다.");announce("유학자는 묻어버려라!");return;
+ }
+ if(move.effect==="qinDomination"){
+  const keys=["atk","def","tec","res","spd"];actor.qinPermanentEffectActive=true;
+  for(const sideKey of ["player","cpu"])battle[sideKey].team.forEach(f=>{
+   if(f.hp<=0||f===actor)return;
+   keys.forEach(key=>changeRank(f,key,-1,actor));
+  });
+  keys.forEach(key=>changeRank(actor,key,1,actor));
+  actor.qinPermanentEffectActive=false;
+  log("더 도미네이션 비기닝! 대기 중인 캐릭터를 포함한 양측 생존자들의 능력치가 영구적으로 하락하고, 시황제의 모든 능력치 랭크가 상승했다.");
+  announce("더 도미네이션 비기닝 — 천하 통일!");return;
+ }
+
  if(move.effect==="toxic"){
   if(Math.random()*100<getAccuracy(move))applyDebuff(target,"toxic",1,actor);
   else{log(actor.name+"의 "+move.name+"이(가) 빗나갔다.");announce("극독 가시 빗나감!");}
@@ -3805,12 +3886,18 @@ async function execute(side,index,moveOverride,order){
 
  /* 리처드가 먼저 행동했는지에 따라 검의 위력 결정 */
  let currentMove={...m};
+ if(a.id==="siegfried"&&isUltimate(m)&&a.nextUltimatePowerBonus>0){
+  currentMove.power=(Number(currentMove.power)||0)+a.nextUltimatePowerBonus;
+  log("니벨룽겐의 노래 효과! 다음 궁극기의 위력이 "+a.nextUltimatePowerBonus+" 증가했다.");
+  a.nextUltimatePowerBonus=0;
+ }
  if(a.id==="violetRathian"&&m.effect==="venomSomersault"&&d.poisonType){
   currentMove.power*=2;
   log("상대가 독 상태다! 극독 서머솔트 위력 2배!");
  }
  if(a.id==="legiana"&&m.effect==="iceThorn")currentMove.power=40+(a.maxHp-a.hp);
  if(a.id==="malzeno"&&m.effect==="bloodRend")currentMove.type="adaptive";
+  if(a.id==="qinShiHuang"&&m.effect==="qinAdaptive")currentMove.type="adaptive";
 
  if(sourceId==="richard"&&m.id==="sword"){
   currentMove.power=(order===0)?180:120;
@@ -3931,7 +4018,7 @@ async function execute(side,index,moveOverride,order){
     return {damage:0,targetSide:other,color:DATA[sourceId]?.color||DATA[a.id].color};
    }
    damage=damageOf(a,d,currentMove,chosenType);
-   actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits||a.id==="asta"});
+   actual=applyDamage(d,damage,a,{ignoreDefense:!!currentMove.ignoreDefense,ignoreTraits:!!currentMove.ignoreTraits||a.id==="asta",movePower:Number(currentMove.power)||0});
 
    if(actual>0){
     total+=actual;
@@ -5548,7 +5635,7 @@ execute=async function(side,index,moveOverride,order){
    if(actor.id==="nahat"&&actor.transformForm==="가루스"){
     const opposing=active(side==="player"?"cpu":"player");if(opposing)opposing.nahatSwitchLocked=false;
    }
-   actor.switchedIn=false;battle[side].activeIndex=targetIndex;
+   actor.switchedIn=false;actor.ranks={...(actor.permanentRanks||{atk:0,def:0,tec:0,res:0,spd:0})};battle[side].activeIndex=targetIndex;
    const next=active(side);next.switchedIn=true;
    log(actor.name+"이(가) 물러나고 "+next.name+"이(가) 출전했다. 교체로 이번 턴 행동을 소비했다.");
    announce(next.name+" 출전!");renderBattle();return;
