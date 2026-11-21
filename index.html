@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.29</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.30</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.29 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.30 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.29 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.30 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -2007,6 +2007,7 @@ function openProfile(id,runtimeFighter=null){
   </div>
  `).join("");
 
+ $("profile").style.zIndex=runtimeFighter?"180":"100";
  $("profile").classList.remove("hidden");
  $("profile").querySelector(".profileWindow").scrollTop=0;
  $("profileCloseTop").focus();
@@ -2017,6 +2018,7 @@ function closeProfile(){
 
  profileOpen=false;
  $("profile").classList.add("hidden");
+ $("profile").style.zIndex="100";
 
  if(previousFocus&&previousFocus.isConnected)
   previousFocus.focus();
@@ -2300,7 +2302,6 @@ function resourceHTML(f){
      `<i class="pip ${i<amount?"on":""}"></i>`
     ).join("")}
    </div>
-   <div class="resourceNote">${note}</div>
    ${status.length?`<div class="resourceNote">${status.join(" · ")}</div>`:""}
   </div>
  `;
@@ -3358,10 +3359,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.29 · HOST · "+message;
+   node.textContent="BUILD v0.29.30 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.29]",message);
+  console.log("[PF v0.29.30]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -5460,12 +5461,19 @@ function v24ShowSwitchPicker(){
  const box=$("v24SwitchOptions");
  const opponent=active("cpu");
  options.forEach(({x,i})=>{
-  const b=document.createElement("button");b.className="v24TeamCard";b.style.width="100%";b.style.margin="6px 0";
+  const row=document.createElement("div");
+  row.style.cssText="display:flex;gap:6px;align-items:stretch;margin:6px 0";
+  const b=document.createElement("button");
+  b.className="v24TeamCard";b.style.cssText="flex:1;width:auto;margin:0";
   const attackMult=classMultiplier(x.className,opponent&&opponent.className);
   const defenseMult=classMultiplier(opponent&&opponent.className,x.className);
   b.innerHTML=`${portrait(x.id)}<span><b>${x.name}</b><small>현재 클래스 · ${x.className||"미지정"} · HP ${x.hp}/${x.maxHp}<br>상대 ${opponent?opponent.name:"상대"} 기준: 내가 주는 피해 ${classMultiplierLabel(attackMult)} · 받는 피해 ${classMultiplierLabel(defenseMult)}<br>교체 후 출전</small></span>`;
   b.onclick=()=>{closeSystemModal();playTurn(-2,{isSwitch:true,targetIndex:i,priority:6,name:"교체",type:"status"});};
-  box.appendChild(b);
+  const info=document.createElement("button");
+  info.type="button";info.className="btn";info.textContent="정보";
+  info.style.cssText="flex:0 0 54px;padding:6px 4px;font-size:11px";
+  info.onclick=()=>openProfile(x.id,x);
+  row.append(b,info);box.appendChild(row);
  });
  $("v24SwitchCancel").onclick=closeSystemModal;
 }
@@ -5479,10 +5487,16 @@ function v24ChooseReplacement(){
   openSystemModal(`<h2>FIGHTER DOWN · 다음 출전 캐릭터</h2><p>현재 캐릭터가 쓰러졌어. 출전시킬 생존 캐릭터를 직접 선택해.</p><div id="v24ReplacementOptions"></div>`);
   const box=$("v24ReplacementOptions");
   options.forEach(({f,i})=>{
-   const b=document.createElement("button");b.className="v24TeamCard";b.style.width="100%";b.style.margin="6px 0";
+   const row=document.createElement("div");
+   row.style.cssText="display:flex;gap:6px;align-items:stretch;margin:6px 0";
+   const b=document.createElement("button");b.className="v24TeamCard";b.style.cssText="flex:1;width:auto;margin:0";
    b.innerHTML=`${portrait(f.id)}<span><b>${f.name}</b><small>HP ${f.hp}/${f.maxHp}</small></span>`;
    b.onclick=()=>{battle.player.activeIndex=i;f.switchedIn=true;closeSystemModal();log(f.name+" 출전!");renderBattle();resolve(true);};
-   box.appendChild(b);
+   const info=document.createElement("button");
+   info.type="button";info.className="btn";info.textContent="정보";
+   info.style.cssText="flex:0 0 54px;padding:6px 4px;font-size:11px";
+   info.onclick=()=>openProfile(f.id,f);
+   row.append(b,info);box.appendChild(row);
   });
  });
 }
@@ -5786,7 +5800,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.29";
+const PF_BUILD_VERSION="v0.29.30";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
