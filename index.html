@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PROJECT FIGHTER TURN BATTLE v0.29.30</title>
+<title>PROJECT FIGHTER TURN BATTLE v0.29.31</title>
 <style>
 :root{--bg:#080d17;--panel:#142136;--line:#425570;--text:#edf4ff;--muted:#a6b8d1}
 *{box-sizing:border-box}
@@ -277,7 +277,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.30 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.31 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -406,7 +406,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.30 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.31 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -2286,6 +2286,7 @@ function resourceHTML(f){
  if(f.id==="malzeno"&&!f.malzenoGutsGranted)status.push("근성 조건 대기");
 
  const rankLabels={atk:"ATK",def:"DEF",tec:"특공",res:"특방",spd:"SPD"};
+ if(f.id==="siegfried"&&Number(f.nextUltimatePowerBonus)>0)status.push("궁극기 위력 +"+Number(f.nextUltimatePowerBonus));
  const changedRanks=Object.keys(rankLabels)
   .filter(k=>(f.ranks[k]||0)!==0)
   .map(k=>rankLabels[k]+" "+((f.ranks[k]>0?"+":"")+f.ranks[k]));
@@ -3359,10 +3360,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.30 · HOST · "+message;
+   node.textContent="BUILD v0.29.31 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.30]",message);
+  console.log("[PF v0.29.31]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3581,8 +3582,8 @@ function activateStatus(side,actor,target,move){
   log("용혈의 기사! 최대 HP의 절반인 "+healed+" 회복했다.");announce("용혈의 기사!");return;
  }
  if(move.effect==="siegfriedSong"){
-  actor.nextUltimatePowerBonus=50;changeRank(actor,"atk",1,actor);
-  log("니벨룽겐의 노래! 다음 궁극기의 위력이 50 증가하고 공격 랭크가 1 상승했다.");
+  actor.nextUltimatePowerBonus=(Number(actor.nextUltimatePowerBonus)||0)+50;changeRank(actor,"atk",1,actor);
+  log("니벨룽겐의 노래! 다음 궁극기의 위력이 50 증가해 총 +"+actor.nextUltimatePowerBonus+"가 되었고 공격 랭크가 1 상승했다.");
   announce("니벨룽겐의 노래!");return;
  }
  if(move.effect==="qinLowerTec"){
@@ -3889,7 +3890,7 @@ async function execute(side,index,moveOverride,order){
  let currentMove={...m};
  if(a.id==="siegfried"&&isUltimate(m)&&a.nextUltimatePowerBonus>0){
   currentMove.power=(Number(currentMove.power)||0)+a.nextUltimatePowerBonus;
-  log("니벨룽겐의 노래 효과! 다음 궁극기의 위력이 "+a.nextUltimatePowerBonus+" 증가했다.");
+  log("니벨룽겐의 노래 효과! 궁극기 위력이 총 "+a.nextUltimatePowerBonus+" 증가했다.");
   a.nextUltimatePowerBonus=0;
  }
  if(a.id==="violetRathian"&&m.effect==="venomSomersault"&&d.poisonType){
@@ -5800,7 +5801,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.30";
+const PF_BUILD_VERSION="v0.29.31";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
