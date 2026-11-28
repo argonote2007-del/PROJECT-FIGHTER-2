@@ -169,6 +169,8 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 .vfxSprite{position:absolute;width:min(82vw,440px);height:min(65vh,420px);object-fit:contain;opacity:0;mix-blend-mode:screen;filter:drop-shadow(0 0 18px var(--c));transform:translate(-50%,-50%);animation:vfxAnim var(--duration) ease-out forwards}
 .vfxSprite.guard{width:min(54vw,270px);animation-name:guardAnim}
 .vfxSprite.ultimate{width:min(110vw,650px);height:min(83vh,650px)}
+.vfxSprite,.damage{will-change:transform,opacity}
+#fxLayer>*{pointer-events:none}
 @keyframes vfxAnim{0%{opacity:0;transform:translate(-55%,-45%) scale(.6)}25%{opacity:1;transform:translate(-50%,-50%) scale(1)}60%{opacity:1;transform:translate(-50%,-50%) scale(1.16)}100%{opacity:0;transform:translate(-45%,-55%) scale(1.3)}}
 @keyframes guardAnim{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}35%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.2)}}
 .damage{position:absolute;font-size:34px;font-weight:1000;text-shadow:0 2px 4px #000,0 0 15px currentColor;animation:damage .8s ease-out forwards}
@@ -286,7 +288,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.35 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.36 · FIELD BACKGROUND ASSETS + FX CLEANUP</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -351,7 +353,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
    </label>
    <div id="bulkAssetMapping" style="display:grid;gap:10px;margin-top:10px"></div>
    <button class="btn primary full" id="bulkAssetImportButton" type="button" disabled>선택한 이미지 게임에 일괄 등록</button>
-   <p id="bulkAssetImportStatus" style="font-size:13px;color:#aab7c8">1단계: 이미지 선택 → 저장 위치 지정 → 일괄 등록. 등록이 끝나면 아래 2단계 ZIP 내보내기를 눌러.</p>
+   <p id="bulkAssetImportStatus" style="font-size:13px;color:#aab7c8">1단계: 이미지 선택 → 저장 위치 지정. 배경 이미지는 보관함 등록 또는 가든 오브 아발론·성역 전용 배경으로 바로 지정할 수 있어. 등록 후 ZIP을 내보내.</p>
   </div>
   <button class="btn primary full" id="assetExportZipButton" type="button">2단계: 등록한 이미지 ZIP 내보내기</button>
   <p id="assetAdminStatus">GitHub 이미지 목록을 확인하는 중...</p>
@@ -415,7 +417,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.35 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.36 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -1537,7 +1539,7 @@ function renderBackgroundSettings(){
   if(!bgFieldSelections[fieldId])bgFieldSelections[fieldId]="preset:"+(fieldId==="garden"?"garden":"ruins");
   const label=document.createElement("label");
   label.className="backgroundSelectBox";
-  label.textContent=def.name+" 전용 배경";
+  label.textContent=(fieldId==="garden"?"멀린 · 가든 오브 아발론":fieldId==="sanctuary"?"유노 · 공상의 별낙원":def.name)+" 전용 배경";
   const select=document.createElement("select");
   select.dataset.fieldId=fieldId;
   select.innerHTML=bgOptionsHTML(bgFieldSelections[fieldId]);
@@ -3133,7 +3135,10 @@ function clearFX(){
  // 진행 중인 RAF를 취소하면 playFX 내부 Promise가 resolve되지 않아
  // 후속 정리 코드가 실행되지 않을 수 있으므로 취소하지 않는다.
  // 다음 프레임에서 effectToken 불일치를 확인하고 정상 종료한다.
- ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+ ctx.save();
+ ctx.setTransform(1,0,0,1,0,0);
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.restore();
 
  $("fxLayer").replaceChildren();
  $("darken").classList.remove("on");
@@ -3177,7 +3182,11 @@ function damageFloat(side,n,color,label="-"){
 
  $("fxLayer").appendChild(el);
 
- el.addEventListener("animationend",()=>el.remove(),{once:true});
+ const cleanup=()=>{if(el.isConnected)el.remove();};
+ el.addEventListener("animationend",cleanup,{once:true});
+ el.addEventListener("animationcancel",cleanup,{once:true});
+ // Safari에서 animationend가 누락되어도 잔상이 남지 않도록 안전망을 둔다.
+ setTimeout(cleanup,1200);
 }
 
 function defaultFX(x,y,color,t,m){
@@ -3271,8 +3280,12 @@ function spriteFX(url,m,color,duration,target){
  img.src=url;
  img.alt="";
  // CSS 애니메이션이 끝나면 JS 재생 루프의 상태와 관계없이 제거한다.
- img.addEventListener("animationend",()=>img.remove(),{once:true});
- img.addEventListener("animationcancel",()=>img.remove(),{once:true});
+ let removed=false;
+ const cleanup=()=>{if(removed)return;removed=true;if(img.isConnected)img.remove();};
+ img.addEventListener("animationend",cleanup,{once:true});
+ img.addEventListener("animationcancel",cleanup,{once:true});
+ const fallbackTimer=setTimeout(cleanup,Math.max(1000,duration+500));
+ img.addEventListener("load",()=>{if(removed)clearTimeout(fallbackTimer);},{once:true});
  img.style.left=target.x+"px";
  img.style.top=target.y+"px";
  img.style.setProperty("--c",color);
@@ -3366,7 +3379,10 @@ async function playFX(side,user,m,hit,onImpact,durationOverride){
    if(t<1){
     frameId=requestAnimationFrame(frame);
    }else{
-    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.restore();
     defender.classList.remove("hit");
     resolve();
    }
@@ -3378,7 +3394,13 @@ async function playFX(side,user,m,hit,onImpact,durationOverride){
  await impactTask;
 
  if(sprite)sprite.remove();
-
+ // 각 기술 연출 종료 시 현재 FX 레이어와 캔버스의 잔여 픽셀을 정리한다.
+ if($("fxLayer"))$("fxLayer").querySelectorAll(".vfxSprite").forEach(node=>node.remove());
+ ctx.save();
+ ctx.setTransform(1,0,0,1,0,0);
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.restore();
+ defender.classList.remove("hit");
  attacker.classList.remove("attack");
  $("darken").classList.remove("on");
 }
@@ -3396,10 +3418,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.35 · HOST · "+message;
+   node.textContent="BUILD v0.29.36 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.35]",message);
+  console.log("[PF v0.29.36]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -4676,7 +4698,8 @@ window.collectLocalPFAssets=async()=>{
  const bgList=Array.isArray(savedBG)?savedBG:bgUploads;
  for(const item of bgList){
   const blob=await dbRead("bg:user:"+item.id);
-  if(blob)items.push({path:"backgrounds/"+item.id,blob,name:item.name,kind:"background",id:item.id});
+  if(blob)items.push({path:"backgrounds/"+item.id,blob,name:item.name,kind:"background",id:item.id,
+   fieldIds:Object.keys(bgFieldSelections).filter(fieldId=>bgFieldSelections[fieldId]==="user:"+item.id)});
  }
  return items;
 };
@@ -4734,6 +4757,8 @@ async function exportLocalPFAssetsZip(){
    const filePath="assets/shared/"+fileGroup+"/"+(item.kind==="nahatForm"?"nahat__"+(nahatFormSlug[item.id]||item.id):item.id.replace(":","__"))+"."+ext;
    const key=item.kind==="vfx"?item.id.replace(":","__"):item.kind==="artTransform"?item.id+"__transform":item.kind==="nahatForm"?"nahat__"+(nahatFormSlug[item.id]||item.id):item.id;
    manifest[group][key]={path:filePath,name:item.name};
+   if(item.kind==="background"&&item.fieldIds&&item.fieldIds.length)
+    manifest[group][key].fieldIds=item.fieldIds;
    files.push({name:filePath,bytes:new Uint8Array(await item.blob.arrayBuffer())});
   }
   files.push({name:"assets/shared-assets.json",bytes:new TextEncoder().encode(JSON.stringify(manifest,null,2))});
@@ -4760,7 +4785,10 @@ async function exportLocalPFAssetsZip(){
   const move=DATA[fighter].moves.find(m=>m.id===moveId);
   return {value:"vfx|"+id,label:DATA[fighter].name+" · "+(move?move.name:moveId)};
  })});
- options.push({group:"배경 이미지",items:[{value:"background|new",label:"새 배경 이미지로 등록"}]});
+ options.push({group:"배경 이미지",items:[
+  {value:"background|new",label:"배경 이미지 보관함에 등록"},
+  ...Object.keys(FIELD_DATA).map(fieldId=>({value:"fieldBackground|"+fieldId,label:(fieldId==="garden"?"멀린 · 가든 오브 아발론":fieldId==="sanctuary"?"유노 · 공상의 별낙원":FIELD_DATA[fieldId].name)+" 전용 배경으로 바로 지정"}))
+ ]});
  function makeSelect(){
   const select=document.createElement("select");
   select.className="input";
@@ -4813,16 +4841,21 @@ async function exportLocalPFAssetsZip(){
      await dbWrite("art-transform:"+id,file);setURL(transformArt,id,file);
     }else if(kind==="vfx"){
      await dbWrite(vfxKey(id),file);setURL(vfx,id,file);
-    }else if(kind==="background"){
+    }else if(kind==="background"||kind==="fieldBackground"){
      const bgId="bulk_"+Date.now().toString(36)+"_"+i+"_"+Math.random().toString(36).slice(2,7);
      const item={id:bgId,name:file.name||("배경 이미지 "+(bgUploads.length+1))};
      await dbWrite("bg:user:"+bgId,file);bgUploads.push(item);setURL(bgUserURLs,bgId,file);
      await dbWrite("bg:uploads",bgUploads);
+     if(kind==="fieldBackground"){
+      if(!FIELD_DATA[id])throw new Error("존재하지 않는 필드입니다: "+id);
+      bgFieldSelections[id]="user:"+bgId;
+      await saveBGSetting("bg:setting:field:"+id,bgFieldSelections[id]);
+     }
     }
     done++;
    }
    renderCards();renderVFXLibrary();renderBackgroundSettings();applyArenaBackground();
-   status.textContent="등록 완료: "+done+"개 이미지가 이 기기의 게임 저장소에 저장됐어. 이제 아래 ZIP 내보내기를 눌러 GitHub에 올려 줘.";
+   status.textContent="등록 완료: "+done+"개 이미지가 저장됐어. 필드 전용으로 지정한 이미지는 해당 필드에 자동 연결됐어. 아래 ZIP 내보내기를 눌러 GitHub에 올려 줘.";
    selectedFiles=[];fileInput.value="";drawRows();
   }catch(error){
    status.textContent="일괄 등록 중 오류가 발생했어. "+done+"개는 저장됐어. 오류: "+(error&&error.message?error.message:error);
@@ -4889,6 +4922,9 @@ window.applyCloudPFAssets=async(data)=>{
   if(!meta||!meta.url)continue;
   bgUserURLs[id]=meta.url;
   if(!bgUploads.some(x=>x.id===id))bgUploads.push({id,name:meta.name||("배경 이미지 "+id),cloud:true});
+  if(Array.isArray(meta.fieldIds))for(const fieldId of meta.fieldIds){
+   if(FIELD_DATA[fieldId])bgFieldSelections[fieldId]="user:"+id;
+  }
   cacheBlob(meta.url,"bg:user:"+id);
  }
  renderCards();
