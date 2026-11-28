@@ -1,5 +1,5 @@
 {
-  "version": 1795871438625,
+  "version": 1795873334598,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -128,5 +128,28 @@
       "name": "시황제 · 더 도미네이션 비기닝"
     }
   },
-  "backgrounds": {}
+  "backgrounds": {
+    "bulk_mx0fpdky_0_989ui": {
+      "path": "assets/shared/backgrounds/bulk_mx0fpdky_0_989ui.webp",
+      "name": "IMG_1472.webp"
+    },
+    "bulk_mx0fq346_0_obzuy": {
+      "path": "assets/shared/backgrounds/bulk_mx0fq346_0_obzuy.webp",
+      "name": "IMG_1472.webp"
+    },
+    "bulk_mx0gm4do_0_hs2hx": {
+      "path": "assets/shared/backgrounds/bulk_mx0gm4do_0_hs2hx.jpg",
+      "name": "IMG_1676.jpeg",
+      "fieldIds": [
+        "garden"
+      ]
+    },
+    "bulk_mx0gm4ee_1_98d5v": {
+      "path": "assets/shared/backgrounds/bulk_mx0gm4ee_1_98d5v.jpg",
+      "name": "IMG_1677.jpeg",
+      "fieldIds": [
+        "sanctuary"
+      ]
+    }
+  }
 }
