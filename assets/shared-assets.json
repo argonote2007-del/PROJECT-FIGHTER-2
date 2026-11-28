@@ -1,5 +1,5 @@
 {
-  "version": 1795850875132,
+  "version": 1795871438625,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -98,6 +98,34 @@
     "enkidu__enkiduUltimate": {
       "path": "assets/shared/vfx/enkidu__enkiduUltimate.jpg",
       "name": "엘키두 · 에누마 엘리시"
+    },
+    "richard__sword": {
+      "path": "assets/shared/vfx/richard__sword.jpg",
+      "name": "리처드 1세 · 영원히 머나먼 승리의 검"
+    },
+    "merlin__garden": {
+      "path": "assets/shared/vfx/merlin__garden.jpg",
+      "name": "멀린 · 가든 오브 아발론"
+    },
+    "morgan__unreachableIdeal": {
+      "path": "assets/shared/vfx/morgan__unreachableIdeal.jpg",
+      "name": "모르간 · 이미 도달할 수 없는 이상향"
+    },
+    "altria__excalibur": {
+      "path": "assets/shared/vfx/altria__excalibur.jpg",
+      "name": "알트리아 펜드래곤 · 약속된 승리의 검-엑스칼리버"
+    },
+    "siegfried__siegfriedBalmung": {
+      "path": "assets/shared/vfx/siegfried__siegfriedBalmung.jpg",
+      "name": "지크프리트 · 환상대검-발뭉"
+    },
+    "cuChulainn__cuGaeBolg": {
+      "path": "assets/shared/vfx/cuChulainn__cuGaeBolg.jpg",
+      "name": "쿠 훌린 · 찔러뚫는 죽음의 가시창-게이볼그"
+    },
+    "qinShiHuang__qinDomination": {
+      "path": "assets/shared/vfx/qinShiHuang__qinDomination.jpg",
+      "name": "시황제 · 더 도미네이션 비기닝"
     }
   },
   "backgrounds": {}
