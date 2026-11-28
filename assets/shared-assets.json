@@ -1,5 +1,5 @@
 {
-  "version": 1795272876966,
+  "version": 1795850875132,
   "art": {
     "gilgamesh": {
       "path": "assets/shared/art/gilgamesh.png",
@@ -80,6 +80,10 @@
     "siegfried": {
       "path": "assets/shared/art/siegfried.png",
       "name": "지크프리트 · 일반 일러스트"
+    },
+    "cuChulainn": {
+      "path": "assets/shared/art/cuChulainn.png",
+      "name": "쿠 훌린 · 일반 일러스트"
     },
     "qinShiHuang": {
       "path": "assets/shared/art/qinShiHuang.png",
