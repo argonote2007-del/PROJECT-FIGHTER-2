@@ -283,7 +283,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
 
 <section id="selectScreen" class="screen">
  <div class="logo">PROJECT <span>FIGHTER</span></div>
- <div class="sub">TURN BATTLE / v0.29.31 · TEAM BATTLE + ONLINE LOBBY</div>
+ <div class="sub">TURN BATTLE / v0.29.33 · TEAM BATTLE + ONLINE LOBBY</div>
 
  <div class="panel">
   <div id="categorySelection">
@@ -412,7 +412,7 @@ p{font-size:11px;color:var(--muted);line-height:1.6}
  <div class="top">
   <b>PROJECT <span style="color:#f05a77">FIGHTER</span></b>
   <span id="turnLabel">TURN 01</span>
-  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.31 · 연결 상태 확인 중</span>
+  <span id="pfBuildDiag" title="실행 중인 코드와 온라인 연출 상태" style="font-size:8px;line-height:1.25;color:#aee3f0;text-align:center;max-width:34%;overflow-wrap:anywhere">BUILD v0.29.33 · 연결 상태 확인 중</span>
   <button class="btn" id="battleClassChartBtn" type="button" style="font-size:9px;padding:6px 7px;white-space:nowrap">상성표</button>
   <button class="btn" id="quitBtn">EXIT</button>
  </div>
@@ -499,7 +499,7 @@ fate:{
   subtitle:"페이트",
   icon:"♛",
   color:"#f5cb62",
-  characters:["gilgamesh","enkidu","richard","merlin","morgan","altria","siegfried","qinShiHuang"]
+  characters:["gilgamesh","enkidu","richard","merlin","morgan","altria","siegfried","qinShiHuang","cuChulainn"]
  },
  mh:{
   name:"MONSTER HUNTER",subtitle:"몬스터 헌터",icon:"✦",color:"#d78b62",
@@ -748,6 +748,19 @@ const DATA={
    M("siegfriedBalmung","환상대검-발뭉",60,3,100,2,"physical","우선도 +2의 위력 60 물리 궁극기.",1,{ultimate:true})
   ]
  },
+ cuChulainn:{
+  name:"쿠 훌린",title:"빛의 왕자",color:"#5b9fe8",
+  trait:"전투 속행 — HP가 1보다 높을 때 HP가 0이 되는 피해를 받으면 HP 1로 버틴다.",
+  stats:{hp:180,atk:130,def:120,tec:60,res:60,spd:130},
+  resource:"전투 속행",max:0,
+  resourceDesc:"HP가 1보다 높은 상태에서 HP가 0이 되는 피해를 받을 때마다 HP 1로 버틴다. 발동 횟수 제한 없음.",
+  moves:[
+   M("cuGaeBolgRed","꿰뚫는 붉은 창",90,10,100,0,"physical","물리 공격. 명중하면 상대는 2턴 동안 HP를 회복할 수 없다.",1,{effect:"cuHealBlock"}),
+   M("cuDisengage","재정비",0,6,100,1,"status","자신의 최대 HP의 1/4을 회복하고 다른 아군 캐릭터와 교체한다.",1,{effect:"cuHealSwitch"}),
+   M("cuGaeBolgThrown","꿰어뚫는 죽음의 나는 창",60,8,100,1,"physical","우선도 +1의 물리 공격."),
+   M("cuGaeBolg","찔러뚫는 죽음의 가시창-게이볼그",140,2,100,0,"physical","상대의 방어 랭크 상승, 특성, 방어 기술을 무시하는 궁극기.",1,{ultimate:true,ignoreDefense:true,ignoreTraits:true})
+  ]
+ },
  qinShiHuang:{
   name:"시황제",title:"시작의 왕",color:"#d9bd82",
   trait:"중앙집권 — 상대 캐릭터의 능력치 랭크가 하락할 때마다 시황제의 동일 능력치 랭크가 실제 하락량만큼 상승한다.",
@@ -785,6 +798,7 @@ const CLASS_ELIGIBILITY={
  richard:["세이버","라이더","버서커","룰러"],
  morgan:["캐스터","버서커","룰러"],altria:["세이버"],
   siegfried:["세이버"],qinShiHuang:["룰러","캐스터"],
+  cuChulainn:["랜서","세이버","라이더","캐스터","버서커"],
  malzeno:["랜서","세이버"],safi:["캐스터","버서커","포리너"],
  legiana:["랜서","얼터에고"],violetRathian:["랜서","어새신","프리텐더"]
 };
@@ -1128,6 +1142,7 @@ function makeFighter(id){
 
   illusionAvailable:id==="merlin",
   gutsAvailable:id==="morgan",
+  healBlockTurns:0,
   magnaTraitReady:false,
   magnaGutsMoveActive:false,
   malzenoGutsGranted:false,
@@ -1181,6 +1196,7 @@ function canUse(f,i){
  const m=movesOf(f)[i];
 
  if(m.partyOnly)return false;
+ if(m.effect==="cuHealSwitch"&&(!battle||battle.mode!=="team"))return false;
  if(m.requiresGuts&&!(f.id==="malzeno"&&f.malzenoGutsReady))return false;
  if(f.cooldowns&&f.cooldowns[m.id]>0)return false;
 
@@ -2287,6 +2303,7 @@ function resourceHTML(f){
  if(f.poisonType)status.push(f.poisonType==="extremePoison"?"극독":f.poisonType==="toxic"?"맹독":"독");
  else if(f.poisoned)status.push("독성 "+f.poisoned);
  if(f.switchLock)status.push("교체 봉쇄 "+f.switchLock+"턴");
+ if(f.healBlockTurns>0)status.push("HP 회복 봉쇄 "+f.healBlockTurns+"턴");
  if(f.madnessTurns>0)status.push("광기 "+f.madnessTurns+"턴");
  if(f.id==="morgan"&&f.gutsAvailable)status.push("근성 대기");
  if(f.id==="malzeno"&&!f.malzenoGutsGranted)status.push("근성 조건 대기");
@@ -2836,7 +2853,7 @@ function damageByType(a,d,m,type){
  const attack=physical?statValue(a,"atk"):statValue(a,"tec");
  const defenseKey=(m.effect==="yunoZephyr")?"def":(physical?"def":"res");
  // 아스타의 반 마법: 상대의 기본 방어/특방은 남기고 랭크 상승만 무시한다.
- const defense=Math.max(1,a.id==="asta"?(d.stats[defenseKey]||0):statValue(d,defenseKey));
+ const defense=Math.max(1,(m.ignoreDefense||a.id==="asta")?(d.stats[defenseKey]||0):statValue(d,defenseKey));
 
  let power=powerOf(a,d,m);
 
@@ -2887,6 +2904,7 @@ function damageOf(a,d,m,chosenType=null){
 }
 
 function heal(f,amount){
+ if(f&&f.healBlockTurns>0){log(f.name+"은(는) 회복 봉쇄 상태라 HP를 회복할 수 없다.");return 0;}
  const old=f.hp;
 
  f.hp=clamp(f.hp+amount,0,f.maxHp);
@@ -2918,6 +2936,10 @@ function applyDamage(target,amount,source,flags=null){
   if(movePower<=60){log("지크프리트의 아머 오브 파프니르! 위력 "+movePower+" 기술의 피해를 무효화했다.");return 0;}
   incoming=Math.floor(incoming*.5);
   log("아머 오브 파프니르! 받는 피해가 절반으로 감소했다.");
+ }
+ if(!(flags&&flags.ignoreTraits)&&target.id==="cuChulainn"&&target.hp>1&&incoming>=target.hp){
+  const actual=target.hp-1;target.hp=1;
+  log("쿠 훌린의 전투 속행 발동! HP 1로 버텼다!");announce("전투 속행 — HP 1!");return actual;
  }
  if(target.id==="malzeno"&&!target.malzenoGutsGranted&&target.hp-incoming<=target.maxHp*.25){
   target.malzenoGutsGranted=true;target.malzenoGutsReady=true;
@@ -3366,10 +3388,10 @@ async function playOnlineFX(side,user,m,hit,onImpact){
  const showHostFXDiag=(message,isError=false)=>{
   const node=document.getElementById("pfBuildDiag");
   if(node){
-   node.textContent="BUILD v0.29.31 · HOST · "+message;
+   node.textContent="BUILD v0.29.33 · HOST · "+message;
    node.style.color=isError?"#ff8d9d":"#aee3f0";
   }
-  console.log("[PF v0.29.31]",message);
+  console.log("[PF v0.29.33]",message);
  };
  const isOnlineHost=!!window.onlineBattleActive&&window.onlineRole==="host";
  const hasPublisher=typeof window.onlinePublishAnimationStart==="function";
@@ -3948,6 +3970,14 @@ async function execute(side,index,moveOverride,order){
  /* 변화 기술 */
  if(m.type==="status"){
   a.lastMove=m.id;
+  if(m.effect==="cuHealSwitch"){
+   if(battle.mode!=="team"){log("재정비는 3대3 파티 전용이다.");return;}
+   const target=side==="cpu"?(()=>{const i=battle[side].team.findIndex((f,j)=>j!==battle[side].activeIndex&&f.hp>0);return i<0?null:{f:battle[side].team[i],i};})():await v24PartyTargetPicker(side,battle[side].activeIndex);
+   if(!target||!target.f||target.f.hp<=0)return;
+   heal(a,Math.floor(a.maxHp/4));
+   a.switchedIn=false;battle[side].activeIndex=target.i;target.f.switchedIn=true;
+   log("재정비! 쿠 훌린이 HP를 회복하고 "+target.f.name+"과(와) 교체했다.");announce("재정비 — 교체!");renderBattle();await v24ResolveFaints();return;
+  }
 
   await playOnlineFX(side,a,currentMove,true,()=>({status:true}));
   activateStatus(side,a,d,currentMove);
@@ -4034,6 +4064,10 @@ async function execute(side,index,moveOverride,order){
     if(a.id==="legiana"&&Math.random()<.20)applyDebuff(d,"freeze",1,a);
     if(!(d.id==="nahat"&&d.nahatObscureTurns>0))damageFloat(other,actual,DATA[sourceId]?.color||DATA[a.id].color);
     log(d.name+"에게 "+actual+" 피해!");
+    if(a.id==="cuChulainn"&&m.effect==="cuHealBlock"){
+     d.healBlockTurns=Math.max(d.healBlockTurns||0,2);
+     log("꿰뚫는 붉은 창! "+d.name+"은(는) 2턴 동안 HP를 회복할 수 없다.");
+    }
    }else{
     log(d.name+"이(가) 피해를 완전히 차단했다.");
    }
@@ -4121,6 +4155,8 @@ function endTurnEffects(){
   }
 
   if(f.cooldowns){Object.keys(f.cooldowns).forEach(k=>{if(f.cooldowns[k]>0)f.cooldowns[k]--;});}
+
+  if(f.healBlockTurns>0){f.healBlockTurns--;if(f.healBlockTurns===0)log(f.name+"의 HP 회복 봉쇄가 해제되었다.");}
 
   /* 신속 지속 턴 */
   if(f.hasteTurns>0)
@@ -5807,7 +5843,7 @@ window.onlinePublishTransformationEvent=async(payload)=>{
  pfDiag("양측 변신 시작 이벤트 전송");
 };
 
-const PF_BUILD_VERSION="v0.29.31";
+const PF_BUILD_VERSION="v0.29.33";
 let pfDiagLast="초기화";
 function pfDiag(message,isError=false){
  pfDiagLast=String(message||"");
